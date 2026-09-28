@@ -102,6 +102,31 @@ NSUInteger SGLyricsOriginalOverlap(NSArray<SGKaraokeLine *> *target, NSString *o
     return aligned(target, SGLyricsLinesFromLRC(originalLRC)).count;
 }
 
+// Translation LRCs sometimes shift every timestamp by the same amount. Estimate that shift
+// from well-separated lines only, where the nearest translated timestamp has one clear owner.
+static NSInteger translationOffset(NSArray<SGKaraokeLine *> *original, NSArray<SGKaraokeLine *> *translated,
+                                   NSDictionary<NSNumber *, NSNumber *> *pairs) {
+    NSMutableArray<NSNumber *> *offsets = [NSMutableArray array];
+    for (NSUInteger i = 0; i < original.count; i++) {
+        if (!pairs[@(i)]) continue;
+        NSInteger start = original[i].start;
+        if ((i && start - original[i - 1].start < 2500) ||
+            (i + 1 < original.count && original[i + 1].start - start < 2500)) continue;
+        NSInteger nearest = 2501;
+        for (SGKaraokeLine *line in translated) nearest = MIN(nearest, labs(line.start - start));
+        if (nearest > 2000) continue;
+        for (SGKaraokeLine *line in translated) {
+            if (labs(line.start - start) == nearest) { [offsets addObject:@(line.start - start)]; break; }
+        }
+    }
+    if (offsets.count < 2) return 0;
+    [offsets sortUsingSelector:@selector(compare:)];
+    NSInteger median = offsets[offsets.count / 2].integerValue;
+    NSUInteger agreeing = 0;
+    for (NSNumber *offset in offsets) if (labs(offset.integerValue - median) <= 350) agreeing++;
+    return agreeing >= 2 && agreeing * 2 > offsets.count ? median : 0;
+}
+
 NSDictionary<NSNumber *, NSString *> *SGLyricsChineseTranslationMap(NSArray<SGKaraokeLine *> *target,
                                                                    NSString *originalLRC, NSString *translatedLRC) {
     NSArray<SGKaraokeLine *> *original = SGLyricsLinesFromLRC(originalLRC);
@@ -109,6 +134,7 @@ NSDictionary<NSNumber *, NSString *> *SGLyricsChineseTranslationMap(NSArray<SGKa
     NSDictionary<NSNumber *, NSNumber *> *pairs = aligned(target, original);
     NSMutableDictionary *updates = [NSMutableDictionary dictionary];
     if (!target.count || !translated.count || pairs.count < MIN((NSUInteger)2, target.count)) return updates;
+    NSInteger offset = translationOffset(original, translated, pairs);
     NSMutableIndexSet *used = [NSMutableIndexSet indexSet];
     NSMutableDictionary<NSString *, NSString *> *repeated = [NSMutableDictionary dictionary];
     NSMutableSet *ambiguous = [NSMutableSet set];
@@ -117,13 +143,18 @@ NSDictionary<NSNumber *, NSString *> *SGLyricsChineseTranslationMap(NSArray<SGKa
         if (!pairs[@(i)]) continue;
         SGKaraokeLine *source = original[i];
         NSString *sourceText = comparable(SGKaraokeLineText(source));
-        NSInteger distance = 501;
+        NSInteger distance = offset ? 1201 : 801;
         NSUInteger best = NSNotFound;
         for (NSUInteger j = 0; j < translated.count; j++) {
             if ([used containsIndex:j]) continue;
-            NSInteger gap = labs(translated[j].start - source.start);
+            NSInteger adjusted = translated[j].start - offset;
+            NSInteger gap = labs(adjusted - source.start);
             NSString *text = SGKaraokeLineText(translated[j]);
-            if (gap < distance && SGLyricsContainsHan(text) && ![comparable(text) isEqualToString:sourceText]) {
+            // Do not borrow a neighbouring line's translation just because this line is absent.
+            BOOL closest = YES;
+            if (i && labs(adjusted - original[i - 1].start) < gap) closest = NO;
+            if (i + 1 < original.count && labs(adjusted - original[i + 1].start) < gap) closest = NO;
+            if (closest && gap < distance && SGLyricsContainsHan(text) && ![comparable(text) isEqualToString:sourceText]) {
                 distance = gap; best = j;
             }
         }

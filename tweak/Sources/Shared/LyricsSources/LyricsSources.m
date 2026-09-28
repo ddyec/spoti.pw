@@ -231,7 +231,9 @@ static NSMutableDictionary<NSString *, NSArray<SGKaraokeLine *> *> *sg_translati
 
 static BOOL needsChineseTranslations(NSArray<SGKaraokeLine *> *lines) {
     for (SGKaraokeLine *line in lines) {
-        if (!SGLyricsContainsHan(line.translation) && !SGLyricsContainsHan(SGKaraokeLineText(line))) return YES;
+        NSString *original = SGKaraokeLineText(line);
+        if ([original rangeOfCharacterFromSet:NSCharacterSet.alphanumericCharacterSet].location != NSNotFound &&
+            !SGLyricsContainsHan(line.translation) && !SGLyricsContainsHan(original)) return YES;
     }
     return NO;
 }
