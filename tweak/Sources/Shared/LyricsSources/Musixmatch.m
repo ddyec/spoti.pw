@@ -264,8 +264,8 @@ static NSString *comparable(NSString *text) {
     return [value stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].lowercaseString;
 }
 
-static void applyTranslations(SGLyricsResult *lyrics, id list) {
-    if (![list isKindOfClass:NSArray.class] || !lyrics.karaokeLines.count) return;
+static NSUInteger applyTranslations(SGLyricsResult *lyrics, id list) {
+    if (![list isKindOfClass:NSArray.class] || !lyrics.karaokeLines.count) return 0;
     NSMutableDictionary<NSString *, NSString *> *byLine = [NSMutableDictionary dictionary];
     for (NSDictionary *item in list) {
         id value = [item isKindOfClass:NSDictionary.class] ? item[@"translation"] : nil;
@@ -279,31 +279,50 @@ static void applyTranslations(SGLyricsResult *lyrics, id list) {
         if ([lyrics.starts[i] isKindOfClass:NSNumber.class] && [lyrics.texts[i] isKindOfClass:NSString.class])
             originalAt[lyrics.starts[i]] = lyrics.texts[i];
     }
+    NSUInteger matched = 0;
     for (SGKaraokeLine *line in lyrics.karaokeLines) {
         NSString *original = SGKaraokeLineText(line);
         NSString *rendered = byLine[comparable(original)] ?: byLine[comparable(originalAt[@(line.start)])];
-        if (rendered.length && ![comparable(rendered) isEqualToString:comparable(original)])
+        if (rendered.length && ![comparable(rendered) isEqualToString:comparable(original)]) {
             line.translation = rendered;
+            matched++;
+        }
     }
+    return matched;
 }
 
-static void withTranslations(SGLyricsResult *lyrics, id track, NSString *token, void (^done)(SGLyricsResult *)) {
-    id trackID = [track isKindOfClass:NSDictionary.class] ? track[@"track_id"] : nil;
-    if (!lyrics.karaokeLines.count || !([trackID isKindOfClass:NSString.class] || [trackID isKindOfClass:NSNumber.class])) {
-        done(lyrics);
-        return;
-    }
-    NSString *language = SGLyricsTranslationLanguage() ?: NSLocale.preferredLanguages.firstObject ?: @"en";
-    language = [language componentsSeparatedByString:@"-"].firstObject.lowercaseString;
-    if (!language.length) language = @"en";
+static void fetchTranslations(SGLyricsResult *lyrics, NSString *musixmatchTrackID, NSString *spotifyTrackID, NSString *token,
+                              NSArray<NSString *> *languages, NSUInteger index) {
+    if (index >= languages.count) return;
+    NSString *language = languages[index];
     call(@"crowd.track.translations.get", @{
-        @"usertoken": token, @"track_id": [trackID description], @"selected_language": language,
+        @"usertoken": token, @"track_id": musixmatchTrackID, @"selected_language": language,
         @"translation_fields_set": @"minimal", @"comment_format": @"text", @"part": @"user"
     }, ^(NSDictionary *message) {
-        if ([dig(message, @"header/status_code") integerValue] == 200)
-            applyTranslations(lyrics, dig(message, @"body/translations_list"));
-        done(lyrics);
+        NSInteger status = [dig(message, @"header/status_code") integerValue];
+        id list = dig(message, @"body/translations_list");
+        NSUInteger count = [list isKindOfClass:NSArray.class] ? [list count] : 0;
+        NSUInteger matched = status == 200 ? applyTranslations(lyrics, list) : 0;
+        SGLog(@"musixmatch: translation %@ status %ld, %lu entries, %lu matched lines",
+              language, (long)status, (unsigned long)count, (unsigned long)matched);
+        if (matched) {
+            [NSNotificationCenter.defaultCenter postNotificationName:SGLyricsTranslationUpdatedNotification object:spotifyTrackID];
+        } else if (index + 1 < languages.count) {
+            fetchTranslations(lyrics, musixmatchTrackID, spotifyTrackID, token, languages, index + 1);
+        }
     });
+}
+
+static void startTranslations(SGLyricsResult *lyrics, id track, NSString *token, NSString *spotifyTrackID) {
+    id trackID = [track isKindOfClass:NSDictionary.class] ? track[@"track_id"] : nil;
+    if (!lyrics.karaokeLines.count || !([trackID isKindOfClass:NSString.class] || [trackID isKindOfClass:NSNumber.class])) return;
+    NSString *chosen = SGLyricsTranslationLanguage() ?: NSLocale.preferredLanguages.firstObject ?: @"en";
+    NSString *language = chosen.lowercaseString;
+    NSArray<NSString *> *languages;
+    if ([language hasPrefix:@"zh-hans"] || [language hasPrefix:@"zh-cn"]) languages = @[@"zh-CN", @"zh"];
+    else if ([language hasPrefix:@"zh-hant"] || [language hasPrefix:@"zh-tw"]) languages = @[@"zh-TW", @"zh"];
+    else languages = @[[language componentsSeparatedByString:@"-"].firstObject ?: @"en"];
+    fetchTranslations(lyrics, [trackID description], spotifyTrackID, token, languages, 0);
 }
 
 static void ask(NSString *trackID, BOOL renewToken) {
@@ -339,10 +358,8 @@ static void ask(NSString *trackID, BOOL renewToken) {
                   : [NSString stringWithFormat:@"%lu untimed lines", (unsigned long)lyrics.texts.count]);
             id track = dig(calls, @"matcher.track.get/message/body/track");
             SGLyricsResult *named = withTrack(lyrics, track);
-            if (lyrics) withTranslations(named, track, token, ^(SGLyricsResult *translated) {
-                finish(trackID, translated, YES);
-            });
-            else finish(trackID, named, YES);
+            finish(trackID, named, YES);
+            if (lyrics) startTranslations(named, track, token, trackID);
         });
     });
 }

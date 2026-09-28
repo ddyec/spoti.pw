@@ -1116,6 +1116,7 @@ typedef struct {
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(playerTransitionChanged:) name:SGPlayerTransitionNotification object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(playerTransitionChanged:) name:SGPlayerTransitionEndedNotification object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(restyle) name:SGRLyricsTextDidChangeNotification object:nil];
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(translationUpdated:) name:SGLyricsTranslationUpdatedNotification object:nil];
     // A locked phone leaves the card in its window, so the link has to be put down by the app going
     // away rather than by the view going: see scheduleLink.
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(scheduleLink) name:UIApplicationDidBecomeActiveNotification object:nil];
@@ -1350,6 +1351,17 @@ typedef struct {
 }
 
 #pragma mark - the pronunciation and the translation
+
+- (void)translationUpdated:(NSNotification *)notification {
+    if (![_track isEqualToString:notification.object] || !_lines) return;
+    BOOL available = NO;
+    for (SGKaraokeLine *line in _lines) {
+        if (line.translation.length) { available = YES; break; }
+    }
+    if (available == _hasTranslation) return;
+    _hasTranslation = available;
+    [self restyle];
+}
 
 // What a line shows besides its words: what the song has, of what the lyrics menu has switched on.
 - (SGRKaraokeStyle *)styleNow {

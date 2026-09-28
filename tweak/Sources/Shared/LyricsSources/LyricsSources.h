@@ -121,6 +121,8 @@ NSArray<NSString *> *SGLyricsTranslationLanguages(void);
 NSArray<NSString *> *SGLyricsTranslationLanguageNames(void);
 // The tag of the language asked for, nil for whatever the source has.
 NSString *SGLyricsTranslationLanguage(void);
+// Posted on the main queue with the Spotify track id as object when a late translation arrives.
+extern NSNotificationName const SGLyricsTranslationUpdatedNotification;
 
 
 // The sources themselves, each in its own file.

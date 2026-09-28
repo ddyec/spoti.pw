@@ -482,6 +482,8 @@ __attribute__((constructor)) static void registerForcer(void) {
 
 #pragma mark - the language of translations
 
+NSNotificationName const SGLyricsTranslationUpdatedNotification = @"spotifyglass.lyricsTranslationUpdated";
+
 NSArray<NSString *> *SGLyricsTranslationLanguages(void) {
     return @[@"", @"ar", @"zh-Hans", @"zh-Hant", @"cs", @"da", @"nl", @"en", @"fi", @"fr", @"de", @"el", @"he",
              @"hi", @"hu", @"id", @"it", @"ja", @"ko", @"nb", @"pl", @"pt", @"ro", @"ru", @"sk", @"es", @"sv",

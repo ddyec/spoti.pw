@@ -44,6 +44,6 @@ jobs:
 
       - uses: actions/upload-artifact@v5
         with:
-          name: spoti-issue-144-test-ipa
+          name: spoti-issue-144-async-translation-ipa
           path: out/*.ipa
           if-no-files-found: error
