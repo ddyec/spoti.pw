@@ -41,3 +41,9 @@ jobs:
           case "$(file --mime-type -b ipa/spotify.ipa)" in application/zip|application/x-ios-app) ;; *) echo "::error::Not an IPA"; exit 1 ;; esac
 
       - run: make release
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: spoti-issue-144-test-ipa
+          path: out/*.ipa
+          if-no-files-found: error
