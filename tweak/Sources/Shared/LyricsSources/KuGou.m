@@ -18,7 +18,7 @@ static NSString *normalized(NSString *text) {
 static BOOL matches(NSDictionary *candidate, SGLyricsQuery *query) {
     if (!([candidate[@"id"] isKindOfClass:NSString.class] || [candidate[@"id"] isKindOfClass:NSNumber.class]) ||
         ![candidate[@"accesskey"] isKindOfClass:NSString.class] ||
-        ![normalized(candidate[@"song"]) isEqualToString:normalized(query.title)]) return NO;
+        !SGLyricsTitleMatches(candidate[@"song"], query.title)) return NO;
     NSString *artist = normalized([query.artist componentsSeparatedByString:@" feat"].firstObject);
     NSString *singer = normalized(candidate[@"singer"]);
     if (!artist.length || !singer.length || !([artist containsString:singer] || [singer containsString:artist])) return NO;

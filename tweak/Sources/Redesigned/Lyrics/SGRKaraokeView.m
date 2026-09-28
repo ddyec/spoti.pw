@@ -1665,10 +1665,11 @@ typedef struct {
         [self dropLineViews];
         [self offerExtras];
     }
-    // Plain text is shown while Spotify is asked whether it has the song timed; its answer replaces it.
-    NSArray<SGKaraokeLine *> *kept = _plain && _lines && track ? SGKaraokeLinesForTrack(track) : nil;
-    if (kept && kept != _lines) {
-        SGLog(@"karaoke: timed lines of %@ came in over the plain text", track);
+    // A source may arrive after Spotify's line-timed reply. Upgrade to its word timing without
+    // keeping the player waiting for the source's network request.
+    NSArray<SGKaraokeLine *> *kept = _lines && track ? SGKaraokeLinesForTrack(track) : nil;
+    if (kept && kept != _lines && (_plain || SGKaraokeLinesTiming(kept) <= SGKaraokeLinesTiming(_lines))) {
+        SGLog(@"karaoke: source lines of %@ arrived after the page", track);
         _lines = nil;
         _builtWidth = 0;
         [self creditTo:nil];

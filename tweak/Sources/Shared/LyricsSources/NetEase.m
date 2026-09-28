@@ -102,7 +102,7 @@ static void tryLyrics(NSArray<NSNumber *> *songs, NSUInteger index, void (^done)
 
 // A recording is only taken when its length is this close to the track's, so the words fall on the
 // same beat as the recording Spotify is playing.
-static void findSongs(SGLyricsQuery *query, void (^done)(NSArray<NSNumber *> *ids)) {
+static void findSongs(SGLyricsQuery *query, BOOL requireTitle, void (^done)(NSArray<NSNumber *> *ids)) {
     NSString *lead = [query.artist componentsSeparatedByString:@" feat"].firstObject.lowercaseString;
     NSString *title = query.title;
     NSInteger seconds = query.seconds;
@@ -114,7 +114,8 @@ static void findSongs(SGLyricsQuery *query, void (^done)(NSArray<NSNumber *> *id
         id songs = [root[@"result"] isKindOfClass:NSDictionary.class] ? root[@"result"][@"songs"] : nil;
         NSMutableArray<NSDictionary *> *fitting = [NSMutableArray array];
         for (NSDictionary *song in [songs isKindOfClass:NSArray.class] ? songs : @[]) {
-            if (![song isKindOfClass:NSDictionary.class] || labs([song[@"duration"] integerValue] / 1000 - seconds) > kLengthSlack) continue;
+            if (![song isKindOfClass:NSDictionary.class] || labs([song[@"duration"] integerValue] / 1000 - seconds) > kLengthSlack ||
+                (requireTitle && !SGLyricsTitleMatches(song[@"name"], title))) continue;
             id artists = song[@"artists"];
             for (NSDictionary *credited in [artists isKindOfClass:NSArray.class] ? artists : @[]) {
                 NSString *name = [credited isKindOfClass:NSDictionary.class] && [credited[@"name"] isKindOfClass:NSString.class] ? [credited[@"name"] lowercaseString] : nil;
@@ -134,7 +135,7 @@ static void findSongs(SGLyricsQuery *query, void (^done)(NSArray<NSNumber *> *id
 }
 
 SGLyricsAsk SGNetEaseAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *result)) {
-    findSongs(query, ^(NSArray<NSNumber *> *ids) {
+    findSongs(query, YES, ^(NSArray<NSNumber *> *ids) {
         tryLyrics(ids, 0, ^(NSArray<SGKaraokeLine *> *lines) {
             if (!lines.count) { done(nil); return; }
             SGLyricsResult *result = [SGLyricsResult new];
@@ -145,22 +146,25 @@ SGLyricsAsk SGNetEaseAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *
     });
 };
 
-static void tryTranslations(NSArray<NSNumber *> *ids, NSUInteger index, SGLyricsTranslationReply done) {
+static void tryTranslations(NSArray<NSNumber *> *ids, NSUInteger index, NSArray<SGKaraokeLine *> *target,
+                            SGLyricsTranslationReply done) {
     if (index >= ids.count) { done(nil, nil); return; }
     get(@"song/lyric/v1", @{@"id": ids[index].stringValue, @"lv": @"-1", @"tv": @"-1"}, ^(NSDictionary *root) {
         NSDictionary *original = [root[@"lrc"] isKindOfClass:NSDictionary.class] ? root[@"lrc"] : nil;
         NSDictionary *translated = [root[@"tlyric"] isKindOfClass:NSDictionary.class] ? root[@"tlyric"] : nil;
         NSString *lrc = [original[@"lyric"] isKindOfClass:NSString.class] ? original[@"lyric"] : nil;
         NSString *tlyric = [translated[@"lyric"] isKindOfClass:NSString.class] ? translated[@"lyric"] : nil;
-        if (lrc.length && tlyric.length) {
-            SGLog(@"netease: song %@ has %lu translated bytes", ids[index], (unsigned long)tlyric.length);
-            done(lrc, tlyric);
-        } else {
-            tryTranslations(ids, index + 1, done);
-        }
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+            NSUInteger overlap = tlyric.length ? SGLyricsOriginalOverlap(target, lrc) : 0;
+            dispatch_async(dispatch_get_main_queue(), ^{
+                SGLog(@"netease: translation candidate %@, %lu original lines match", ids[index], (unsigned long)overlap);
+                if (overlap >= MIN((NSUInteger)2, target.count)) done(lrc, tlyric);
+                else tryTranslations(ids, index + 1, target, done);
+            });
+        });
     });
 }
 
-void SGNetEaseTranslationAsk(SGLyricsQuery *query, SGLyricsTranslationReply done) {
-    findSongs(query, ^(NSArray<NSNumber *> *ids) { tryTranslations(ids, 0, done); });
+void SGNetEaseTranslationAsk(SGLyricsQuery *query, NSArray<SGKaraokeLine *> *target, SGLyricsTranslationReply done) {
+    findSongs(query, NO, ^(NSArray<NSNumber *> *ids) { tryTranslations(ids, 0, target, done); });
 }

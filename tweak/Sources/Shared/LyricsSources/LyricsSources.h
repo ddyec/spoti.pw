@@ -72,6 +72,8 @@ BOOL SGLyricsEnabled(void);   // any source at all is on
 
 // Asks the sources in order and merges what they give, on the main queue. nil when none had lyrics.
 void SGLyricsFetch(NSString *trackID, void (^done)(SGLyricsResult *result));
+// The answer already available, without waiting for a provider. Safe from any thread.
+SGLyricsResult *SGLyricsCachedResult(NSString *trackID);
 // NO once every source has said it has nothing for the track; safe from any thread.
 BOOL SGLyricsMayHave(NSString *trackID);
 // Starts the walk for a track before anyone has asked, so the answer is in when Spotify's request
@@ -126,9 +128,16 @@ extern NSNotificationName const SGLyricsTranslationUpdatedNotification;
 // Adds Chinese translations to the lines actually shown in the lyrics view. The original lines
 // are returned immediately; QQ Music and NetEase are queried only after the page has its lyrics.
 void SGLyricsFetchChineseTranslations(NSString *trackID, NSArray<SGKaraokeLine *> *lines);
+// A bilingual local title may contain Spotify's title after a translated prefix.
+BOOL SGLyricsTitleMatches(NSString *candidate, NSString *wanted);
+BOOL SGLyricsContainsHan(NSString *text);
+// Only use a translated recording when its original LRC agrees with the lines already shown.
+NSUInteger SGLyricsOriginalOverlap(NSArray<SGKaraokeLine *> *target, NSString *originalLRC);
+NSDictionary<NSNumber *, NSString *> *SGLyricsChineseTranslationMap(NSArray<SGKaraokeLine *> *target,
+                                                                    NSString *originalLRC, NSString *translatedLRC);
 typedef void (^SGLyricsTranslationReply)(NSString *originalLRC, NSString *translatedLRC);
-void SGQQMusicTranslationAsk(SGLyricsQuery *query, SGLyricsTranslationReply done);
-void SGNetEaseTranslationAsk(SGLyricsQuery *query, SGLyricsTranslationReply done);
+void SGQQMusicTranslationAsk(SGLyricsQuery *query, NSArray<SGKaraokeLine *> *target, SGLyricsTranslationReply done);
+void SGNetEaseTranslationAsk(SGLyricsQuery *query, NSArray<SGKaraokeLine *> *target, SGLyricsTranslationReply done);
 
 
 // The sources themselves, each in its own file.

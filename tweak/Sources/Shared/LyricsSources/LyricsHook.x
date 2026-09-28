@@ -20,6 +20,14 @@ typedef void (^SGDisposition)(NSURLSessionResponseDisposition disposition);
 typedef void (^SGForwardResponse)(NSURLResponse *response, SGDisposition handler);
 typedef void (^SGForwardEnd)(NSError *error);
 
+// A provider answers on the main queue, but Spotify's URLSession delegate belongs on the
+// session's queue. Keep callback delivery on that queue after preparing the body elsewhere.
+static void onDelegateQueue(NSURLSession *session, dispatch_block_t work) {
+    NSOperationQueue *queue = session.delegateQueue;
+    if (queue) [queue addOperationWithBlock:work];
+    else dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), work);
+}
+
 typedef NS_ENUM(NSInteger, SGLyricsTaskKind) {
     SGLyricsTaskCardList,   // scrollsita, answered 200
     SGLyricsTaskSpotify,    // Spotify's own 200
@@ -421,7 +429,9 @@ static void receivedResponse(id delegate, NSURLSession *session, NSURLSessionDat
         return;
     }
     SGLyricsFetch(state.track, ^(SGLyricsResult *chain) {
-        answerHeld(delegate, session, task, state, chain, response, handler, forward);
+        onDelegateQueue(session, ^{
+            answerHeld(delegate, session, task, state, chain, response, handler, forward);
+        });
     });
 }
 
@@ -438,26 +448,36 @@ static BOOL forwardsData(NSURLSessionTask *task, NSData *data) {
     }
 }
 
-// Main queue.
+// Prepare the page away from the UI thread, then deliver on the session's delegate queue.
 static void finishSpotify(id delegate, NSURLSession *session, NSURLSessionDataTask *task, SGLyricsTaskState *state,
                           NSData *body, NSError *error, SGForwardEnd forward) {
     if (error) {
         forward(error);
         return;
     }
-    if (isJSON(body)) {
-        give(delegate, session, task, state, body);
-        forward(nil);
-        return;
-    }
-    SGLyricsFetch(state.track, ^(SGLyricsResult *chain) {
-        NSData *page = decide(state.track, chain, body, NO, coloursIn(body));
-        give(delegate, session, task, state, page ?: body);
-        forward(nil);
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        SGLyricsResult *ready = SGLyricsCachedResult(state.track);
+        // JSON is Spotify's own format; keep it intact, but still publish its lines to our view.
+        BOOL json = isJSON(body);
+        NSData *page = decide(state.track, ready, body, NO, json ? nil : coloursIn(body));
+        onDelegateQueue(session, ^{
+            give(delegate, session, task, state, json ? body : page ?: body);
+            forward(nil);
+        });
+        if (ready) return;
+        NSString *track = state.track;
+        SGLyricsFetch(track, ^(SGLyricsResult *chain) {
+            if (!chain.karaokeLines.count) return;
+            NSArray<SGKaraokeLine *> *shown = SGKaraokeLinesForTrack(track);
+            if (shown && SGKaraokeLinesTiming(shown) < SGKaraokeLinesTiming(chain.karaokeLines)) return;
+            SGKaraokeKeepLines(track, chain.karaokeLines);
+            SGLyricsSetCredit(track, chain.provider);
+            SGLyricsFetchChineseTranslations(track, chain.karaokeLines);
+        });
     });
 }
 
-// Main queue.
+// The session's delegate queue.
 static void finishDonor(id delegate, NSURLSession *session, NSURLSessionDataTask *task, SGLyricsTaskState *state,
                         NSData *body, NSError *error, SGForwardEnd forward) {
     SGLyricsResult *chain;
@@ -498,19 +518,15 @@ static void completed(id delegate, NSURLSession *session, NSURLSessionTask *task
         if (!error) give(delegate, session, dataTask, state, amendedCardList(body, state.track));
         forward(error);
     } else if (state.kind == SGLyricsTaskSpotify) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            finishSpotify(delegate, session, dataTask, state, body, error, forward);
-        });
+        finishSpotify(delegate, session, dataTask, state, body, error, forward);
     } else if (held) {
         // Ended while the sources walk: the end goes through now, and their answer to nobody.
         forward(error);
     } else if (state.kind == SGLyricsTaskDonor) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            finishDonor(delegate, session, dataTask, state, body, error, forward);
-        });
+        finishDonor(delegate, session, dataTask, state, body, error, forward);
     } else if (delivering) {
-        // Behind the response and body the main queue is handing over.
-        dispatch_async(dispatch_get_main_queue(), ^{ forward(error); });
+        // Behind the response and body the delegate queue is handing over.
+        onDelegateQueue(session, ^{ forward(error); });
     } else {
         forward(error);
     }

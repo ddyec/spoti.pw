@@ -20,9 +20,7 @@ static NSString *normalized(NSString *text) {
     return out.lowercaseString;
 }
 
-static BOOL matches(NSDictionary *song, SGLyricsQuery *query) {
-    NSString *title = [song[@"title"] isKindOfClass:NSString.class] ? song[@"title"] : song[@"songname"];
-    if (![normalized(title) isEqualToString:normalized(query.title)]) return NO;
+static BOOL matchesRecording(NSDictionary *song, SGLyricsQuery *query) {
     if (query.seconds > 0 && [song[@"interval"] respondsToSelector:@selector(integerValue)] &&
         labs([song[@"interval"] integerValue] - query.seconds) > 6) return NO;
     NSString *wanted = normalized([query.artist componentsSeparatedByString:@" feat"].firstObject);
@@ -44,6 +42,11 @@ static void lyricReply(NSNumber *songID, BOOL translation, void (^done)(NSDictio
         NSDictionary *data = [reply[@"data"] isKindOfClass:NSDictionary.class] ? reply[@"data"] : nil;
         done(data);
     });
+}
+
+static BOOL matches(NSDictionary *song, SGLyricsQuery *query) {
+    NSString *title = [song[@"title"] isKindOfClass:NSString.class] ? song[@"title"] : song[@"songname"];
+    return SGLyricsTitleMatches(title, query.title) && matchesRecording(song, query);
 }
 
 static NSString *decoded(NSDictionary *data, NSString *key) {
@@ -69,12 +72,12 @@ static void lyricsForSong(NSNumber *songID, void (^done)(SGLyricsResult *)) {
     });
 }
 
-static void findSong(SGLyricsQuery *query, void (^done)(NSNumber *songID)) {
-    if (!query.title.length || !query.artist.length) { done(nil); return; }
+static void search(SGLyricsQuery *query, void (^done)(NSArray<NSDictionary *> *list)) {
+    if (!query.title.length || !query.artist.length) { done(@[]); return; }
     NSDictionary *request = @{
         @"comm": @{@"ct": @"19", @"cv": @"1859", @"uin": @"0"},
         @"req": @{@"method": @"DoSearchForQQMusicDesktop", @"module": @"music.search.SearchCgiService",
-                  @"param": @{@"grp": @1, @"num_per_page": @8, @"page_num": @1,
+                  @"param": @{@"grp": @1, @"num_per_page": @15, @"page_num": @1,
                                @"query": [NSString stringWithFormat:@"%@ %@", query.title, query.artist], @"search_type": @0}}
     };
     SGLyricsPostJSON([NSURL URLWithString:kMusicu], headers(), request, ^(id root) {
@@ -84,6 +87,12 @@ static void findSong(SGLyricsQuery *query, void (^done)(NSNumber *songID)) {
         NSDictionary *body = [data[@"body"] isKindOfClass:NSDictionary.class] ? data[@"body"] : nil;
         NSDictionary *song = [body[@"song"] isKindOfClass:NSDictionary.class] ? body[@"song"] : nil;
         NSArray *list = [song[@"list"] isKindOfClass:NSArray.class] ? song[@"list"] : @[];
+        done(list);
+    });
+}
+
+static void findSong(SGLyricsQuery *query, void (^done)(NSNumber *songID)) {
+    search(query, ^(NSArray<NSDictionary *> *list) {
         for (NSDictionary *candidate in list) {
             if (![candidate isKindOfClass:NSDictionary.class] || !matches(candidate, query)) continue;
             NSNumber *songID = [candidate[@"id"] isKindOfClass:NSNumber.class] ? candidate[@"id"] : nil;
@@ -101,15 +110,44 @@ SGLyricsAsk SGQQMusicAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *
     });
 };
 
-void SGQQMusicTranslationAsk(SGLyricsQuery *query, SGLyricsTranslationReply done) {
-    findSong(query, ^(NSNumber *songID) {
-        if (!songID) { done(nil, nil); return; }
-        lyricReply(songID, YES, ^(NSDictionary *data) {
-            NSString *original = decoded(data, @"lyric");
-            NSString *translated = decoded(data, @"trans");
-            SGLog(@"qqmusic: translation for %@ has %lu original and %lu translated bytes",
-                  songID, (unsigned long)original.length, (unsigned long)translated.length);
-            done(original, translated);
+static void tryTranslations(NSArray<NSDictionary *> *songs, NSUInteger index, SGLyricsQuery *query,
+                            NSArray<SGKaraokeLine *> *target, SGLyricsTranslationReply done) {
+    if (index >= MIN(songs.count, 6)) { done(nil, nil); return; }
+    NSDictionary *song = songs[index];
+    NSNumber *songID = [song[@"id"] isKindOfClass:NSNumber.class] ? song[@"id"] : nil;
+    if (!songID || !matchesRecording(song, query)) {
+        tryTranslations(songs, index + 1, query, target, done);
+        return;
+    }
+    lyricReply(songID, YES, ^(NSDictionary *data) {
+        NSString *original = decoded(data, @"lyric");
+        NSString *translated = decoded(data, @"trans");
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+            NSUInteger overlap = translated.length ? SGLyricsOriginalOverlap(target, original) : 0;
+            dispatch_async(dispatch_get_main_queue(), ^{
+                SGLog(@"qqmusic: translation candidate %@ title %@, %lu original lines match",
+                      songID, song[@"title"], (unsigned long)overlap);
+                if (overlap >= MIN((NSUInteger)2, target.count)) done(original, translated);
+                else tryTranslations(songs, index + 1, query, target, done);
+            });
         });
+    });
+}
+
+void SGQQMusicTranslationAsk(SGLyricsQuery *query, NSArray<SGKaraokeLine *> *target, SGLyricsTranslationReply done) {
+    search(query, ^(NSArray<NSDictionary *> *list) {
+        NSMutableArray<NSDictionary *> *candidates = [NSMutableArray array];
+        for (NSDictionary *song in list) {
+            if ([song isKindOfClass:NSDictionary.class] && matchesRecording(song, query)) [candidates addObject:song];
+        }
+        [candidates sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
+            BOOL aTitle = SGLyricsTitleMatches(a[@"title"], query.title);
+            BOOL bTitle = SGLyricsTitleMatches(b[@"title"], query.title);
+            if (aTitle != bTitle) return aTitle ? NSOrderedAscending : NSOrderedDescending;
+            NSInteger aGap = labs([a[@"interval"] integerValue] - query.seconds);
+            NSInteger bGap = labs([b[@"interval"] integerValue] - query.seconds);
+            return aGap < bGap ? NSOrderedAscending : aGap > bGap ? NSOrderedDescending : NSOrderedSame;
+        }];
+        tryTranslations(candidates, 0, query, target, done);
     });
 }

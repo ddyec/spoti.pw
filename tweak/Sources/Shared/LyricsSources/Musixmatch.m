@@ -359,15 +359,21 @@ static void ask(NSString *trackID, BOOL renewToken) {
                 finish(trackID, nil, NO);
                 return;
             }
-            SGLyricsResult *lyrics = fromCalls(calls);
-            SGLog(@"musixmatch: %@ has %@", trackID, !lyrics ? @"no lyrics it may show"
-                  : lyrics.wordTimed ? [NSString stringWithFormat:@"%lu word timed lines", (unsigned long)lyrics.karaokeLines.count]
-                  : lyrics.synced ? [NSString stringWithFormat:@"%lu line timed lines", (unsigned long)lyrics.karaokeLines.count]
-                  : [NSString stringWithFormat:@"%lu untimed lines", (unsigned long)lyrics.texts.count]);
             id track = dig(calls, @"matcher.track.get/message/body/track");
-            SGLyricsResult *named = withTrack(lyrics, track);
-            finish(trackID, named, YES);
-            if (lyrics) startTranslations(named, track, token, trackID);
+            // Richsync can contain thousands of word entries. Parse them away from the UI queue;
+            // only the cache and callbacks belong on main.
+            dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+                SGLyricsResult *lyrics = fromCalls(calls);
+                SGLyricsResult *named = withTrack(lyrics, track);
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    SGLog(@"musixmatch: %@ has %@", trackID, !lyrics ? @"no lyrics it may show"
+                          : lyrics.wordTimed ? [NSString stringWithFormat:@"%lu word timed lines", (unsigned long)lyrics.karaokeLines.count]
+                          : lyrics.synced ? [NSString stringWithFormat:@"%lu line timed lines", (unsigned long)lyrics.karaokeLines.count]
+                          : [NSString stringWithFormat:@"%lu untimed lines", (unsigned long)lyrics.texts.count]);
+                    finish(trackID, named, YES);
+                    if (lyrics) startTranslations(named, track, token, trackID);
+                });
+            });
         });
     });
 }
