@@ -102,22 +102,12 @@ static void tryLyrics(NSArray<NSNumber *> *songs, NSUInteger index, void (^done)
 
 // A recording is only taken when its length is this close to the track's, so the words fall on the
 // same beat as the recording Spotify is playing.
-SGLyricsAsk SGNetEaseAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *result)) {
-    void (^answer)(NSArray<SGKaraokeLine *> *) = ^(NSArray<SGKaraokeLine *> *lines) {
-        if (!lines.count) {
-            done(nil);
-            return;
-        }
-        SGLyricsResult *result = [SGLyricsResult new];
-        result.wordTimed = result.synced = YES;
-        result.karaokeLines = lines;
-        done(result);
-    };
+static void findSongs(SGLyricsQuery *query, void (^done)(NSArray<NSNumber *> *ids)) {
     NSString *lead = [query.artist componentsSeparatedByString:@" feat"].firstObject.lowercaseString;
     NSString *title = query.title;
     NSInteger seconds = query.seconds;
     if (!title.length || !lead.length || seconds <= 0) {
-        answer(nil);
+        done(@[]);
         return;
     }
     get(@"search/get", @{@"s": [NSString stringWithFormat:@"%@ %@", title, lead], @"type": @"1", @"limit": @"10"}, ^(NSDictionary *root) {
@@ -139,6 +129,38 @@ SGLyricsAsk SGNetEaseAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *
         }];
         NSArray *ids = [[fitting valueForKey:@"id"] subarrayWithRange:NSMakeRange(0, MIN(fitting.count, kTriedSongs))];
         if (!ids.count) SGLog(@"netease: no recording of %@ by %@ within %lds of %lds", title, lead, (long)kLengthSlack, (long)seconds);
-        tryLyrics(ids, 0, answer);
+        done(ids);
+    });
+}
+
+SGLyricsAsk SGNetEaseAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *result)) {
+    findSongs(query, ^(NSArray<NSNumber *> *ids) {
+        tryLyrics(ids, 0, ^(NSArray<SGKaraokeLine *> *lines) {
+            if (!lines.count) { done(nil); return; }
+            SGLyricsResult *result = [SGLyricsResult new];
+            result.wordTimed = result.synced = YES;
+            result.karaokeLines = lines;
+            done(result);
+        });
     });
 };
+
+static void tryTranslations(NSArray<NSNumber *> *ids, NSUInteger index, SGLyricsTranslationReply done) {
+    if (index >= ids.count) { done(nil, nil); return; }
+    get(@"song/lyric/v1", @{@"id": ids[index].stringValue, @"lv": @"-1", @"tv": @"-1"}, ^(NSDictionary *root) {
+        NSDictionary *original = [root[@"lrc"] isKindOfClass:NSDictionary.class] ? root[@"lrc"] : nil;
+        NSDictionary *translated = [root[@"tlyric"] isKindOfClass:NSDictionary.class] ? root[@"tlyric"] : nil;
+        NSString *lrc = [original[@"lyric"] isKindOfClass:NSString.class] ? original[@"lyric"] : nil;
+        NSString *tlyric = [translated[@"lyric"] isKindOfClass:NSString.class] ? translated[@"lyric"] : nil;
+        if (lrc.length && tlyric.length) {
+            SGLog(@"netease: song %@ has %lu translated bytes", ids[index], (unsigned long)tlyric.length);
+            done(lrc, tlyric);
+        } else {
+            tryTranslations(ids, index + 1, done);
+        }
+    });
+}
+
+void SGNetEaseTranslationAsk(SGLyricsQuery *query, SGLyricsTranslationReply done) {
+    findSongs(query, ^(NSArray<NSNumber *> *ids) { tryTranslations(ids, 0, done); });
+}

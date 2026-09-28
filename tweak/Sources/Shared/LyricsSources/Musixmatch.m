@@ -283,7 +283,15 @@ static NSUInteger applyTranslations(SGLyricsResult *lyrics, id list) {
     for (SGKaraokeLine *line in lyrics.karaokeLines) {
         NSString *original = SGKaraokeLineText(line);
         NSString *rendered = byLine[comparable(original)] ?: byLine[comparable(originalAt[@(line.start)])];
-        if (rendered.length && ![comparable(rendered) isEqualToString:comparable(original)]) {
+        NSString *chosen = SGLyricsTranslationLanguage() ?: NSLocale.preferredLanguages.firstObject;
+        BOOL chinese = [chosen.lowercaseString hasPrefix:@"zh"];
+        BOOL hasHan = NO;
+        for (NSUInteger i = 0; i < rendered.length; i++) {
+            unichar c = [rendered characterAtIndex:i];
+            if (c >= 0x3400 && c <= 0x9fff) { hasHan = YES; break; }
+        }
+        if (rendered.length && (!chinese || hasHan) && ![comparable(rendered) isEqualToString:comparable(original)] &&
+            (!chinese || !line.translation.length)) {
             line.translation = rendered;
             matched++;
         }

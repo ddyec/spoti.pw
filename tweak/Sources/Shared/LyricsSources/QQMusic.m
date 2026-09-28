@@ -33,18 +33,28 @@ static BOOL matches(NSDictionary *song, SGLyricsQuery *query) {
     return NO;
 }
 
-static void lyricsForSong(NSNumber *songID, void (^done)(SGLyricsResult *)) {
+static void lyricReply(NSNumber *songID, BOOL translation, void (^done)(NSDictionary *data)) {
     NSDictionary *request = @{@"music.musichallSong.PlayLyricInfo.GetPlayLyricInfo": @{
         @"method": @"GetPlayLyricInfo", @"module": @"music.musichallSong.PlayLyricInfo",
-        @"param": @{@"crypt": @0, @"qrc": @0, @"songID": songID}}};
+        @"param": @{@"crypt": @0, @"qrc": @0, @"trans": translation ? @1 : @0, @"songID": songID}}};
     SGLyricsPostJSON([NSURL URLWithString:kMusicu], headers(), request, ^(id root) {
         id value = [root isKindOfClass:NSDictionary.class]
             ? root[@"music.musichallSong.PlayLyricInfo.GetPlayLyricInfo"] : nil;
         NSDictionary *reply = [value isKindOfClass:NSDictionary.class] ? value : nil;
         NSDictionary *data = [reply[@"data"] isKindOfClass:NSDictionary.class] ? reply[@"data"] : nil;
-        NSString *encoded = [data[@"lyric"] isKindOfClass:NSString.class] ? data[@"lyric"] : nil;
-        NSData *bytes = encoded.length ? [[NSData alloc] initWithBase64EncodedString:encoded options:0] : nil;
-        NSString *lrc = bytes ? [[NSString alloc] initWithData:bytes encoding:NSUTF8StringEncoding] : nil;
+        done(data);
+    });
+}
+
+static NSString *decoded(NSDictionary *data, NSString *key) {
+    NSString *encoded = [data[key] isKindOfClass:NSString.class] ? data[key] : nil;
+    NSData *bytes = encoded.length ? [[NSData alloc] initWithBase64EncodedString:encoded options:0] : nil;
+    return bytes ? [[NSString alloc] initWithData:bytes encoding:NSUTF8StringEncoding] : nil;
+}
+
+static void lyricsForSong(NSNumber *songID, void (^done)(SGLyricsResult *)) {
+    lyricReply(songID, NO, ^(NSDictionary *data) {
+        NSString *lrc = decoded(data, @"lyric");
         NSArray<SGKaraokeLine *> *lines = lrc ? SGLyricsLinesFromLRC(lrc) : nil;
         if (!lines.count) { done(nil); return; }
         SGLyricsResult *result = [SGLyricsResult new];
@@ -59,7 +69,7 @@ static void lyricsForSong(NSNumber *songID, void (^done)(SGLyricsResult *)) {
     });
 }
 
-SGLyricsAsk SGQQMusicAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *)) {
+static void findSong(SGLyricsQuery *query, void (^done)(NSNumber *songID)) {
     if (!query.title.length || !query.artist.length) { done(nil); return; }
     NSDictionary *request = @{
         @"comm": @{@"ct": @"19", @"cv": @"1859", @"uin": @"0"},
@@ -77,9 +87,29 @@ SGLyricsAsk SGQQMusicAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *
         for (NSDictionary *candidate in list) {
             if (![candidate isKindOfClass:NSDictionary.class] || !matches(candidate, query)) continue;
             NSNumber *songID = [candidate[@"id"] isKindOfClass:NSNumber.class] ? candidate[@"id"] : nil;
-            if (songID) { lyricsForSong(songID, done); return; }
+            if (songID) { done(songID); return; }
         }
         SGLog(@"qqmusic: no matching recording for %@ by %@", query.title, query.artist);
         done(nil);
     });
+}
+
+SGLyricsAsk SGQQMusicAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *)) {
+    findSong(query, ^(NSNumber *songID) {
+        if (!songID) { done(nil); return; }
+        lyricsForSong(songID, done);
+    });
 };
+
+void SGQQMusicTranslationAsk(SGLyricsQuery *query, SGLyricsTranslationReply done) {
+    findSong(query, ^(NSNumber *songID) {
+        if (!songID) { done(nil, nil); return; }
+        lyricReply(songID, YES, ^(NSDictionary *data) {
+            NSString *original = decoded(data, @"lyric");
+            NSString *translated = decoded(data, @"trans");
+            SGLog(@"qqmusic: translation for %@ has %lu original and %lu translated bytes",
+                  songID, (unsigned long)original.length, (unsigned long)translated.length);
+            done(original, translated);
+        });
+    });
+}

@@ -166,7 +166,10 @@ static NSData *decide(NSString *track, SGLyricsResult *chain, NSData *spotifyBod
         viewLines = spotifyLines;
         credit = @"Spotify";
     }
-    if (viewLines) SGKaraokeKeepLines(track, viewLines);
+    if (viewLines) {
+        SGKaraokeKeepLines(track, viewLines);
+        SGLyricsFetchChineseTranslations(track, viewLines);
+    }
     SGLyricsSetCredit(track, credit);
     // Spotify's JSON may have the song timed where its page does not.
     if (!donor && spotifyBody.length && SGKaraokeLinesTiming(viewLines) == SGKaraokeTimingNone) SGKaraokeAskSpotifyForTiming(track);

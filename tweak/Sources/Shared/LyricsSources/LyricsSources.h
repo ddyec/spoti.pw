@@ -123,6 +123,12 @@ NSArray<NSString *> *SGLyricsTranslationLanguageNames(void);
 NSString *SGLyricsTranslationLanguage(void);
 // Posted on the main queue with the Spotify track id as object when a late translation arrives.
 extern NSNotificationName const SGLyricsTranslationUpdatedNotification;
+// Adds Chinese translations to the lines actually shown in the lyrics view. The original lines
+// are returned immediately; QQ Music and NetEase are queried only after the page has its lyrics.
+void SGLyricsFetchChineseTranslations(NSString *trackID, NSArray<SGKaraokeLine *> *lines);
+typedef void (^SGLyricsTranslationReply)(NSString *originalLRC, NSString *translatedLRC);
+void SGQQMusicTranslationAsk(SGLyricsQuery *query, SGLyricsTranslationReply done);
+void SGNetEaseTranslationAsk(SGLyricsQuery *query, SGLyricsTranslationReply done);
 
 
 // The sources themselves, each in its own file.

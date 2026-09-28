@@ -220,6 +220,91 @@ static SGLyricsQuery *queryFor(NSString *trackID) {
     if ([length respondsToSelector:@selector(integerValue)]) query.seconds = [length integerValue] / 1000;
     return query;
 }
+static BOOL named(SGLyricsQuery *query);
+
+// Translation is a separate lookup from the source walk. The walk can return as soon as it has
+// timed lyrics; waiting for QQ or NetEase here would delay Spotify's lyrics card.
+static NSMutableDictionary<NSString *, NSArray<SGKaraokeLine *> *> *sg_translationAsked;
+
+static NSString *translationComparable(NSString *text) {
+    NSString *value = [text isKindOfClass:NSString.class] ? text.lowercaseString : @"";
+    NSMutableString *out = [NSMutableString string];
+    NSCharacterSet *letters = NSCharacterSet.alphanumericCharacterSet;
+    for (NSUInteger i = 0; i < value.length; i++) {
+        unichar c = [value characterAtIndex:i];
+        if ([letters characterIsMember:c]) [out appendFormat:@"%C", c];
+    }
+    return out;
+}
+
+static BOOL containsHan(NSString *text) {
+    for (NSUInteger i = 0; i < text.length; i++) {
+        unichar c = [text characterAtIndex:i];
+        if (c >= 0x3400 && c <= 0x9fff) return YES;
+    }
+    return NO;
+}
+
+static NSUInteger applyChineseTranslations(NSArray<SGKaraokeLine *> *target, NSString *originalLRC, NSString *translatedLRC) {
+    NSArray<SGKaraokeLine *> *original = SGLyricsLinesFromLRC(originalLRC);
+    NSArray<SGKaraokeLine *> *translated = SGLyricsLinesFromLRC(translatedLRC);
+    if (!original.count || !translated.count) return 0;
+    NSUInteger matched = 0;
+    for (SGKaraokeLine *source in original) {
+        NSString *sourceText = translationComparable(SGKaraokeLineText(source));
+        if (!sourceText.length) continue;
+        SGKaraokeLine *targetLine = nil, *translationLine = nil;
+        NSInteger targetDistance = 1501, translationDistance = 501;
+        for (SGKaraokeLine *line in target) {
+            NSInteger distance = labs(line.start - source.start);
+            if (distance < targetDistance && [translationComparable(SGKaraokeLineText(line)) isEqualToString:sourceText]) {
+                targetDistance = distance;
+                targetLine = line;
+            }
+        }
+        if (!targetLine || containsHan(targetLine.translation)) continue;
+        for (SGKaraokeLine *line in translated) {
+            NSInteger distance = labs(line.start - source.start);
+            if (distance < translationDistance && containsHan(SGKaraokeLineText(line))) {
+                translationDistance = distance;
+                translationLine = line;
+            }
+        }
+        if (!translationLine) continue;
+        NSString *text = SGKaraokeLineText(translationLine);
+        if ([translationComparable(text) isEqualToString:sourceText]) continue;
+        targetLine.translation = text;
+        matched++;
+    }
+    return matched;
+}
+
+void SGLyricsFetchChineseTranslations(NSString *trackID, NSArray<SGKaraokeLine *> *lines) {
+    if (!trackID.length || !lines.count) return;
+    NSString *language = SGLyricsTranslationLanguage() ?: NSLocale.preferredLanguages.firstObject;
+    if (![language.lowercaseString hasPrefix:@"zh"]) return;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (!sg_translationAsked) sg_translationAsked = [NSMutableDictionary dictionary];
+        if (sg_translationAsked[trackID] == lines) return;
+        SGLyricsQuery *query = queryFor(trackID);
+        if (!named(query) || query.seconds <= 0) return;
+        if (sg_translationAsked.count >= kKeptTracks) [sg_translationAsked removeAllObjects];
+        sg_translationAsked[trackID] = lines;
+        SGQQMusicTranslationAsk(query, ^(NSString *original, NSString *translated) {
+            if (sg_translationAsked[trackID] != lines) return;
+            NSUInteger count = applyChineseTranslations(lines, original, translated);
+            SGLog(@"lyrics: QQ Chinese translation matched %lu lines for %@", (unsigned long)count, trackID);
+            if (count) [NSNotificationCenter.defaultCenter postNotificationName:SGLyricsTranslationUpdatedNotification object:trackID];
+            if (count >= MAX(3, lines.count / 2)) return;
+            SGNetEaseTranslationAsk(query, ^(NSString *netOriginal, NSString *netTranslated) {
+                if (sg_translationAsked[trackID] != lines) return;
+                NSUInteger netCount = applyChineseTranslations(lines, netOriginal, netTranslated);
+                SGLog(@"lyrics: NetEase Chinese translation matched %lu lines for %@", (unsigned long)netCount, trackID);
+                if (netCount) [NSNotificationCenter.defaultCenter postNotificationName:SGLyricsTranslationUpdatedNotification object:trackID];
+            });
+        });
+    });
+}
 
 static void learnFrom(SGLyricsQuery *query, SGLyricsResult *result) {
     if (!query.title.length && result.title.length) query.title = result.title;

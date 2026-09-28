@@ -16,8 +16,8 @@ static NSString *normalized(NSString *text) {
 }
 
 static BOOL matches(NSDictionary *candidate, SGLyricsQuery *query) {
-    if (![candidate[@"id"] isKindOfClass:NSString.class] || ![candidate[@"accesskey"] isKindOfClass:NSString.class] ||
-        [candidate[@"product_from"] isEqual:@"ugc"] ||
+    if (!([candidate[@"id"] isKindOfClass:NSString.class] || [candidate[@"id"] isKindOfClass:NSNumber.class]) ||
+        ![candidate[@"accesskey"] isKindOfClass:NSString.class] ||
         ![normalized(candidate[@"song"]) isEqualToString:normalized(query.title)]) return NO;
     NSString *artist = normalized([query.artist componentsSeparatedByString:@" feat"].firstObject);
     NSString *singer = normalized(candidate[@"singer"]);
@@ -98,14 +98,43 @@ static NSArray<SGKaraokeLine *> *linesFromKRC(NSString *krc) {
 static void tryCandidates(NSArray<NSDictionary *> *songs, NSUInteger index, void (^done)(SGLyricsResult *)) {
     if (index >= MIN(songs.count, 3)) { done(nil); return; }
     NSDictionary *song = songs[index];
+    NSString *songID = [song[@"id"] description];
     NSURL *url = SGLyricsURL(@"https://lyrics.kugou.com/download", @{
-        @"ver": @"1", @"client": @"pc", @"id": song[@"id"], @"accesskey": song[@"accesskey"],
+        @"ver": @"1", @"client": @"pc", @"id": songID, @"accesskey": song[@"accesskey"],
         @"fmt": @"krc", @"charset": @"utf8"});
     SGLyricsGetJSON(url, @{@"User-Agent": @"Mozilla/5.0"}, ^(id root) {
         NSDictionary *reply = [root isKindOfClass:NSDictionary.class] ? root : nil;
         NSString *krc = [reply[@"status"] integerValue] == 200 ? decodeKRC(reply[@"content"]) : nil;
         NSArray<SGKaraokeLine *> *lines = krc ? linesFromKRC(krc) : nil;
-        if (!lines.count) { tryCandidates(songs, index + 1, done); return; }
+        if (!lines.count) {
+            SGLog(@"kugou: KRC %@ status %ld, decoded %@; trying LRC", songID,
+                  (long)[reply[@"status"] integerValue], krc ? @"yes" : @"no");
+            NSURL *lrcURL = SGLyricsURL(@"https://lyrics.kugou.com/download", @{
+                @"ver": @"1", @"client": @"pc", @"id": songID, @"accesskey": song[@"accesskey"],
+                @"fmt": @"lrc", @"charset": @"utf8"});
+            SGLyricsGetJSON(lrcURL, @{@"User-Agent": @"Mozilla/5.0"}, ^(id lrcRoot) {
+                NSDictionary *lrcReply = [lrcRoot isKindOfClass:NSDictionary.class] ? lrcRoot : nil;
+                NSString *encoded = [lrcReply[@"content"] isKindOfClass:NSString.class] ? lrcReply[@"content"] : nil;
+                NSData *bytes = encoded.length ? [[NSData alloc] initWithBase64EncodedString:encoded options:0] : nil;
+                NSString *lrc = bytes ? [[NSString alloc] initWithData:bytes encoding:NSUTF8StringEncoding] : nil;
+                NSArray<SGKaraokeLine *> *fallback = [lrcReply[@"status"] integerValue] == 200 && lrc.length
+                    ? SGLyricsLinesFromLRC(lrc) : nil;
+                SGLog(@"kugou: LRC %@ status %ld, %lu lines", songID,
+                      (long)[lrcReply[@"status"] integerValue], (unsigned long)fallback.count);
+                if (!fallback.count) { tryCandidates(songs, index + 1, done); return; }
+                SGLyricsResult *result = [SGLyricsResult new];
+                result.synced = YES;
+                result.karaokeLines = fallback;
+                NSArray<NSNumber *> *starts;
+                NSArray<NSString *> *texts;
+                SGLyricsPageLines(fallback, &starts, &texts);
+                result.starts = starts;
+                result.texts = texts;
+                done(result);
+            });
+            return;
+        }
+        SGLog(@"kugou: KRC %@ decoded %lu word timed lines", songID, (unsigned long)lines.count);
         SGLyricsResult *result = [SGLyricsResult new];
         result.synced = result.wordTimed = YES;
         result.karaokeLines = lines;
@@ -135,7 +164,9 @@ SGLyricsAsk SGKuGouAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *))
             NSInteger y = labs([b[@"duration"] integerValue] / 1000 - query.seconds);
             return x < y ? NSOrderedAscending : x > y ? NSOrderedDescending : NSOrderedSame;
         }];
-        SGLog(@"kugou: %@ by %@ has %lu matching recordings", query.title, query.artist, (unsigned long)fitting.count);
+        SGLog(@"kugou: %@ by %@ search status %ld, %lu candidates, %lu matching recordings",
+              query.title, query.artist, (long)[reply[@"status"] integerValue],
+              (unsigned long)candidates.count, (unsigned long)fitting.count);
         tryCandidates(fitting, 0, done);
     });
 };
