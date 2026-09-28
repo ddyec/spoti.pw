@@ -131,6 +131,9 @@ void SGLyricsFetchChineseTranslations(NSString *trackID, NSArray<SGKaraokeLine *
 // A bilingual local title may contain Spotify's title after a translated prefix.
 BOOL SGLyricsTitleMatches(NSString *candidate, NSString *wanted);
 BOOL SGLyricsContainsHan(NSString *text);
+NSString *SGLyricsLeadArtist(NSString *artists);
+NSUInteger SGLyricsArtistMatchCount(NSString *candidate, NSString *wanted);
+BOOL SGLyricsTimedCredit(NSString *text);
 // Only use a translated recording when its original LRC agrees with the lines already shown.
 NSUInteger SGLyricsOriginalOverlap(NSArray<SGKaraokeLine *> *target, NSString *originalLRC);
 NSDictionary<NSNumber *, NSString *> *SGLyricsChineseTranslationMap(NSArray<SGKaraokeLine *> *target,

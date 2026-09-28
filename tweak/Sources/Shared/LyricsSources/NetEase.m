@@ -11,6 +11,16 @@ static const NSTimeInterval kTimeout = 3;
 static const NSInteger kLengthSlack = 3;
 static const NSUInteger kTriedSongs = 3;
 
+static NSString *artistsOf(NSDictionary *song) {
+    NSMutableArray<NSString *> *names = [NSMutableArray array];
+    NSArray *artists = [song[@"artists"] isKindOfClass:NSArray.class] ? song[@"artists"] : @[];
+    for (NSDictionary *artist in artists) {
+        NSString *name = [artist isKindOfClass:NSDictionary.class] ? artist[@"name"] : nil;
+        if ([name isKindOfClass:NSString.class] && name.length) [names addObject:name];
+    }
+    return [names componentsJoinedByString:@", "];
+}
+
 static void get(NSString *path, NSDictionary<NSString *, NSString *> *query, void (^done)(NSDictionary *root)) {
     NSURLComponents *url = [NSURLComponents componentsWithString:[@"https://music.163.com/api/" stringByAppendingString:path]];
     NSMutableArray<NSURLQueryItem *> *items = [NSMutableArray array];
@@ -39,6 +49,7 @@ static NSArray<SGKaraokeLine *> *linesFromYrc(NSString *yrc) {
         piece = [NSRegularExpression regularExpressionWithPattern:@"\\((\\d+),(\\d+),-?\\d+\\)" options:0 error:nil];
     });
     NSMutableArray<SGKaraokeLine *> *lines = [NSMutableArray array];
+    BOOL singing = NO;
     for (NSString *row in [yrc componentsSeparatedByString:@"\n"]) {
         NSTextCheckingResult *head = [header firstMatchInString:row options:0 range:NSMakeRange(0, row.length)];
         if (!head) continue;
@@ -78,6 +89,10 @@ static NSArray<SGKaraokeLine *> *linesFromYrc(NSString *yrc) {
         line.words = words;
         line.start = [row substringWithRange:[head rangeAtIndex:1]].integerValue;
         line.end = line.start + [row substringWithRange:[head rangeAtIndex:2]].integerValue;
+        NSString *text = SGKaraokeLineText(line);
+        if (!singing && line.start < 30000 && SGLyricsTimedCredit(text)) continue;
+        if (!singing && line.start < 2500 && [text containsString:@" - "]) continue;
+        singing = YES;
         [lines addObject:line];
     }
     return lines.count ? lines : nil;
@@ -103,7 +118,7 @@ static void tryLyrics(NSArray<NSNumber *> *songs, NSUInteger index, void (^done)
 // A recording is only taken when its length is this close to the track's, so the words fall on the
 // same beat as the recording Spotify is playing.
 static void findSongs(SGLyricsQuery *query, BOOL requireTitle, void (^done)(NSArray<NSNumber *> *ids)) {
-    NSString *lead = [query.artist componentsSeparatedByString:@" feat"].firstObject.lowercaseString;
+    NSString *lead = SGLyricsLeadArtist(query.artist);
     NSString *title = query.title;
     NSInteger seconds = query.seconds;
     if (!title.length || !lead.length || seconds <= 0) {
@@ -116,16 +131,12 @@ static void findSongs(SGLyricsQuery *query, BOOL requireTitle, void (^done)(NSAr
         for (NSDictionary *song in [songs isKindOfClass:NSArray.class] ? songs : @[]) {
             if (![song isKindOfClass:NSDictionary.class] || labs([song[@"duration"] integerValue] / 1000 - seconds) > kLengthSlack ||
                 (requireTitle && !SGLyricsTitleMatches(song[@"name"], title))) continue;
-            id artists = song[@"artists"];
-            for (NSDictionary *credited in [artists isKindOfClass:NSArray.class] ? artists : @[]) {
-                NSString *name = [credited isKindOfClass:NSDictionary.class] && [credited[@"name"] isKindOfClass:NSString.class] ? [credited[@"name"] lowercaseString] : nil;
-                if (name.length && ([name containsString:lead] || [lead containsString:name])) {
-                    [fitting addObject:song];
-                    break;
-                }
-            }
+            if (SGLyricsArtistMatchCount(artistsOf(song), query.artist)) [fitting addObject:song];
         }
         [fitting sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
+            NSUInteger aScore = SGLyricsArtistMatchCount(artistsOf(a), query.artist);
+            NSUInteger bScore = SGLyricsArtistMatchCount(artistsOf(b), query.artist);
+            if (aScore != bScore) return aScore > bScore ? NSOrderedAscending : NSOrderedDescending;
             return [@(labs([a[@"duration"] integerValue] / 1000 - seconds)) compare:@(labs([b[@"duration"] integerValue] / 1000 - seconds))];
         }];
         NSArray *ids = [[fitting valueForKey:@"id"] subarrayWithRange:NSMakeRange(0, MIN(fitting.count, kTriedSongs))];

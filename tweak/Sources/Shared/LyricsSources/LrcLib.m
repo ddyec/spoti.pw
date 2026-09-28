@@ -22,13 +22,18 @@ static NSDictionary<NSString *, NSString *> *headers(void) {
 // carries three digits. A line may be stamped more than once when it is sung more than once, and
 // the tags LRC opens with ([ar:…], [length:…]) are not timestamps, so they fall out on their own.
 NSArray<SGKaraokeLine *> *SGLyricsLinesFromLRC(NSString *lrc) {
-    static NSRegularExpression *stamp;
+    static NSRegularExpression *stamp, *offsetTag;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         stamp = [NSRegularExpression regularExpressionWithPattern:@"\\[(\\d{1,3}):(\\d{1,2})(?:[.:](\\d{1,3}))?\\]" options:0 error:nil];
+        offsetTag = [NSRegularExpression regularExpressionWithPattern:@"^\\[offset:([+-]?\\d{1,6})\\]$"
+                                                                options:NSRegularExpressionCaseInsensitive error:nil];
     });
     NSMutableArray<NSDictionary *> *stamped = [NSMutableArray array];
+    NSInteger offset = 0;
     for (NSString *row in [lrc componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
+        NSTextCheckingResult *tag = [offsetTag firstMatchInString:row options:0 range:NSMakeRange(0, row.length)];
+        if (tag) { offset = [row substringWithRange:[tag rangeAtIndex:1]].integerValue; continue; }
         NSArray<NSTextCheckingResult *> *found = [stamp matchesInString:row options:0 range:NSMakeRange(0, row.length)];
         // Only the stamps a line opens with are its own; one further in is part of the words.
         NSUInteger end = 0;
@@ -48,18 +53,26 @@ NSArray<SGKaraokeLine *> *SGLyricsLinesFromLRC(NSString *lrc) {
         }
         if (!at.count) continue;
         NSString *text = [[row substringFromIndex:end] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet];
-        for (NSNumber *ms in at) [stamped addObject:@{@"ms": ms, @"text": text}];
+        for (NSNumber *ms in at) [stamped addObject:[@{@"ms": ms, @"text": text} mutableCopy]];
     }
     if (!stamped.count) return nil;
+    // A positive LRC offset advances the displayed line. Do this after reading all rows so
+    // a metadata tag before or after the lyrics has the same meaning.
+    for (NSMutableDictionary *row in stamped) row[@"ms"] = @(MAX((NSInteger)0, [row[@"ms"] integerValue] - offset));
     [stamped sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
         return [a[@"ms"] compare:b[@"ms"]];
     }];
     // The empty rows stay in: they are the breaks, and each one is the end of the line before it.
     NSMutableArray<NSNumber *> *starts = [NSMutableArray array];
     NSMutableArray<NSString *> *texts = [NSMutableArray array];
+    BOOL singing = NO;
     for (NSDictionary *row in stamped) {
+        NSString *text = row[@"text"];
+        if (!singing && [row[@"ms"] integerValue] < 30000 && SGLyricsTimedCredit(text)) continue;
+        if (!singing && [row[@"ms"] integerValue] < 2500 && [text containsString:@" - "]) continue;
+        if (text.length) singing = YES;
         [starts addObject:row[@"ms"]];
-        [texts addObject:row[@"text"]];
+        [texts addObject:text];
     }
     return SGKaraokeEstimatedLines(starts, texts);
 }

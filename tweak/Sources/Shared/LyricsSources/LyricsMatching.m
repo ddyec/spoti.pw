@@ -21,6 +21,59 @@ BOOL SGLyricsContainsHan(NSString *text) {
     return NO;
 }
 
+static NSArray<NSString *> *artistParts(NSString *artists) {
+    if (![artists isKindOfClass:NSString.class] || !artists.length) return @[];
+    static NSRegularExpression *separator;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        separator = [NSRegularExpression regularExpressionWithPattern:@"\\s*(?:,|，|、|/|&|;|；)\\s*|\\s+(?:feat\\.?|ft\\.?|featuring)\\s+"
+                                                            options:NSRegularExpressionCaseInsensitive error:nil];
+    });
+    NSString *separated = [separator stringByReplacingMatchesInString:artists options:0
+                                                               range:NSMakeRange(0, artists.length) withTemplate:@"\n"];
+    NSMutableArray<NSString *> *parts = [NSMutableArray array];
+    for (NSString *part in [separated componentsSeparatedByString:@"\n"]) {
+        NSString *name = [part stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+        if (name.length) [parts addObject:name];
+    }
+    return parts;
+}
+
+NSString *SGLyricsLeadArtist(NSString *artists) {
+    return artistParts(artists).firstObject;
+}
+
+NSUInteger SGLyricsArtistMatchCount(NSString *candidate, NSString *wanted) {
+    NSArray<NSString *> *candidateParts = artistParts(candidate);
+    NSUInteger matches = 0;
+    for (NSString *wantedPart in artistParts(wanted)) {
+        NSString *name = comparable(wantedPart);
+        if (name.length < 4) continue;
+        for (NSString *candidatePart in candidateParts) {
+            NSString *other = comparable(candidatePart);
+            if (other.length >= 4 && ([name isEqualToString:other] ||
+                                      (MIN(name.length, other.length) >= 6 &&
+                                       ([name containsString:other] || [other containsString:name])))) {
+                matches++;
+                break;
+            }
+        }
+    }
+    return matches;
+}
+
+BOOL SGLyricsTimedCredit(NSString *text) {
+    if (![text isKindOfClass:NSString.class]) return NO;
+    static NSRegularExpression *credit;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        credit = [NSRegularExpression regularExpressionWithPattern:
+            @"^\\s*(?:作词|作曲|编曲|演唱|原唱|歌手|混音(?:师)?|录音(?:师)?|母带(?:处理工程师)?|制作(?:人)?|出品|策划|监制|发行|合声|和声|原声吉他|电吉他|乐队|词|曲|Lyrics? by|Composed by|Arranged by|Produced by|Vocal(?:ist)?|OP|SP)(?:\\s+[A-Za-z][A-Za-z&/ ]{0,30})?\\s*[:：]"
+            options:NSRegularExpressionCaseInsensitive error:nil];
+    });
+    return [credit firstMatchInString:text options:0 range:NSMakeRange(0, text.length)] != nil;
+}
+
 BOOL SGLyricsTitleMatches(NSString *candidate, NSString *wanted) {
     NSString *a = comparable(candidate), *b = comparable(wanted);
     if (!a.length || !b.length) return NO;

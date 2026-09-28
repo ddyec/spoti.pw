@@ -1358,8 +1358,9 @@ typedef struct {
     for (SGKaraokeLine *line in _lines) {
         if (line.translation.length) { available = YES; break; }
     }
-    if (available == _hasTranslation) return;
     _hasTranslation = available;
+    // The source may fill previously empty rows while the translation control was already on.
+    // Rebuild those labels even when availability itself did not change.
     [self restyle];
 }
 

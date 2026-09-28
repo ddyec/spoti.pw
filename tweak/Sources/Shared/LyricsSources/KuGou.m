@@ -4,24 +4,11 @@
 #import <string.h>
 #import <zlib.h>
 
-static NSString *normalized(NSString *text) {
-    if (![text isKindOfClass:NSString.class]) return @"";
-    NSMutableString *out = [NSMutableString string];
-    NSCharacterSet *skip = [NSCharacterSet characterSetWithCharactersInString:@" -_.,:;!?()[]{}'\"·，。！？（）【】—　\t\n"];
-    for (NSUInteger i = 0; i < text.length; i++) {
-        unichar c = [text characterAtIndex:i];
-        if (![skip characterIsMember:c]) [out appendFormat:@"%C", c];
-    }
-    return out.lowercaseString;
-}
-
 static BOOL matches(NSDictionary *candidate, SGLyricsQuery *query) {
     if (!([candidate[@"id"] isKindOfClass:NSString.class] || [candidate[@"id"] isKindOfClass:NSNumber.class]) ||
         ![candidate[@"accesskey"] isKindOfClass:NSString.class] ||
         !SGLyricsTitleMatches(candidate[@"song"], query.title)) return NO;
-    NSString *artist = normalized([query.artist componentsSeparatedByString:@" feat"].firstObject);
-    NSString *singer = normalized(candidate[@"singer"]);
-    if (!artist.length || !singer.length || !([artist containsString:singer] || [singer containsString:artist])) return NO;
+    if (!SGLyricsArtistMatchCount(candidate[@"singer"], query.artist)) return NO;
     NSInteger duration = [candidate[@"duration"] respondsToSelector:@selector(integerValue)]
         ? [candidate[@"duration"] integerValue] : 0;
     return query.seconds <= 0 || duration <= 0 || labs(duration / 1000 - query.seconds) <= 8;
@@ -49,6 +36,7 @@ static NSArray<SGKaraokeLine *> *linesFromKRC(NSString *krc) {
         part = [NSRegularExpression regularExpressionWithPattern:@"<(\\d+),(\\d+),-?\\d+>" options:0 error:nil];
     });
     NSMutableArray<SGKaraokeLine *> *lines = [NSMutableArray array];
+    BOOL singing = NO;
     for (NSString *row in [krc componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
         NSTextCheckingResult *head = [header firstMatchInString:row options:0 range:NSMakeRange(0, row.length)];
         if (!head) continue;
@@ -90,6 +78,10 @@ static NSArray<SGKaraokeLine *> *linesFromKRC(NSString *krc) {
         line.start = lineStart;
         line.end = MAX(lineEnd, words.lastObject.end);
         line.timing = SGKaraokeTimingWords;
+        NSString *text = SGKaraokeLineText(line);
+        if (!singing && line.start < 30000 && SGLyricsTimedCredit(text)) continue;
+        if (!singing && line.start < 2500 && [text containsString:@" - "]) continue;
+        singing = YES;
         [lines addObject:line];
     }
     return lines.count ? lines : nil;
@@ -151,7 +143,7 @@ SGLyricsAsk SGKuGouAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *))
     if (!query.title.length || !query.artist.length) { done(nil); return; }
     NSURL *url = SGLyricsURL(@"https://krcs.kugou.com/search", @{
         @"ver": @"1", @"man": @"yes", @"client": @"mobi", @"hash": @"", @"album_audio_id": @"",
-        @"keyword": [NSString stringWithFormat:@"%@ - %@", query.artist, query.title],
+        @"keyword": [NSString stringWithFormat:@"%@ - %@", SGLyricsLeadArtist(query.artist) ?: query.artist, query.title],
         @"duration": [NSString stringWithFormat:@"%ld", (long)MAX(query.seconds, 0) * 1000]});
     SGLyricsGetJSON(url, @{@"User-Agent": @"Mozilla/5.0"}, ^(id root) {
         NSDictionary *reply = [root isKindOfClass:NSDictionary.class] ? root : nil;
@@ -160,6 +152,9 @@ SGLyricsAsk SGKuGouAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *))
         NSMutableArray<NSDictionary *> *fitting = [NSMutableArray array];
         for (id song in candidates) if ([song isKindOfClass:NSDictionary.class] && matches(song, query)) [fitting addObject:song];
         [fitting sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
+            NSUInteger aScore = SGLyricsArtistMatchCount(a[@"singer"], query.artist);
+            NSUInteger bScore = SGLyricsArtistMatchCount(b[@"singer"], query.artist);
+            if (aScore != bScore) return aScore > bScore ? NSOrderedAscending : NSOrderedDescending;
             NSInteger x = labs([a[@"duration"] integerValue] / 1000 - query.seconds);
             NSInteger y = labs([b[@"duration"] integerValue] / 1000 - query.seconds);
             return x < y ? NSOrderedAscending : x > y ? NSOrderedDescending : NSOrderedSame;
