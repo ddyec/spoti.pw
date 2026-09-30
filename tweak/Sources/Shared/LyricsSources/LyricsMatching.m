@@ -122,7 +122,9 @@ NSString *SGLyricsSearchTitle(NSString *title) {
     });
     // Featured performers are credits, often absent from another catalogue's title.
     // Strip only a trailing feature-credit bracket; live/remix markers stay intact.
-    value = [featured stringByReplacingMatchesInString:value options:0 range:NSMakeRange(0, value.length) withTemplate:@""];
+    NSString *withoutFeature = [featured stringByReplacingMatchesInString:value options:0 range:NSMakeRange(0, value.length) withTemplate:@""];
+    BOOL removedFeature = ![withoutFeature isEqualToString:value];
+    value = withoutFeature;
     // Check the whole suffix, including a nested version such as
     // Song - Soundtrack Theme (Instrumental), before removing anything.
     NSTextCheckingResult *match = [suffix firstMatchInString:value options:0 range:NSMakeRange(0, value.length)];
@@ -134,7 +136,7 @@ NSString *SGLyricsSearchTitle(NSString *title) {
                 stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
         }
     }
-    return [value stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    return removedFeature ? [value stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet] : title;
 }
 
 BOOL SGLyricsTitleMatches(NSString *candidate, NSString *wanted) {
