@@ -27,10 +27,11 @@ qqEligibility = section(base / "LyricsSources/QQMusic.m", "static BOOL matches("
 eligibility = section(base / "LyricsSources/LyricsSources.m", "static BOOL needsChineseTranslations(", "// Calculate off main;")
 preview = section(root / "tweak/Sources/Native/Player/LyricsPreview.x", "static CGRect previewFrame(", "static BOOL showing(")
 redesignPreview = section(root / "tweak/Sources/Redesigned/Player/PlayerPreview.x", "static CGRect sgrPreviewFrame(", "static BOOL sgrShowing(")
+prefetchSelection = section(base / "LyricsSources/LyricsSources.m", "static BOOL shouldPublishPrefetchedLines(", "void SGLyricsPrefetch(")
 source = ("#import <Foundation/Foundation.h>\n#import <CoreGraphics/CoreGraphics.h>\n#import <dispatch/dispatch.h>\n#include <stdio.h>\n#include <stdlib.h>\n"
           + model + query + "BOOL SGLyricsTimedCredit(NSString *);\n"
           + "BOOL SGLyricsDiagnosticsEnabled(void) { return NO; }\nvoid SGLyricsLog(NSString *format, ...) {}\n"
-          + timing + lrc + matching + aliases + qrc + eligibility + qqMetadata + qqEligibility + krc + preview + redesignPreview)
+          + timing + lrc + matching + aliases + qrc + eligibility + qqMetadata + qqEligibility + krc + preview + redesignPreview + prefetchSelection)
 tests = r'''
 static void check(BOOL ok, NSString *label) {
     if (!ok) { NSLog(@"FAIL: %@", label); exit(1); }
@@ -76,6 +77,11 @@ int main(void) {
         check(SGLyricsArtistMatchCount(@"HOYO-MiX", artists) == 1, @"label-only local release");
         check(SGLyricsArtistMatchCount(@"茶理理", artists) == 1, @"short Chinese artist");
         NSArray *split = SGLyricsLinesFromLRC(@"[00:08]The paper birds are flying\n[00:11]over a quiet morning harbor\n[00:16]We watch the distant lights return");
+        check(shouldPublishPrefetchedLines(nil, split), @"prefetch publishes when Spotify never requested lyrics");
+        check(!shouldPublishPrefetchedLines(split, nil), @"missing result never removes existing display lyrics");
+        SGKaraokeLine *fine = [SGKaraokeLine new]; fine.timing = SGKaraokeTimingWords;
+        check(!shouldPublishPrefetchedLines(@[fine], split), @"prefetch retains finer Spotify word timing");
+        check(shouldPublishPrefetchedLines(split, @[fine]), @"word-timed provider upgrades display cache");
         NSString *joined = @"[00:08]The paper birds are flying over a quiet morning harbor\n[00:16]We watch the distant lights return";
         NSString *translation = @"[00:08]纸鸟飞过安静的晨港\n[00:16]我们看远方灯火归来";
         check(SGLyricsRecordingMatches(split, SGLyricsLinesFromLRC(joined)), @"split/merged original evidence");

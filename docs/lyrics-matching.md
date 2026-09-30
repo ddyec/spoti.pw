@@ -53,6 +53,12 @@ The existing redesigned lyrics corner menu exposes Pronunciation when data is pr
 No synthesized Japanese kanji reading or machine translation is introduced.
 # Native player preview
 
+Source prefetch publishes validated karaoke lines directly to the display cache. The
+redesigned lyrics page and preview no longer depend on Spotify making a color-lyrics
+request to copy a successful provider result there. Existing finer timing is retained;
+the provider can still supply translations/pronunciation. `prefetch` diagnostics record
+publication or retention without logging lyric text.
+
 The native player now renders the shared cache's current timed line in its own overlay on
 the player, measured between the visible cover and the information row. It does not depend
 on Spotify creating or sizing `LyricsContainerView` or populating its preview model. This is

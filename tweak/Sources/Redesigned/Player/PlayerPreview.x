@@ -69,6 +69,9 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     if (UIApplication.sharedApplication.applicationState != UIApplicationStateActive) return;
     UIView *host = self.superview, *info = sgr_previewInfo;
     if (!host) return;
+    // Sources can finish after the footer's track-change grace period. Refresh its
+    // availability from the same display cache; this call exits when nothing changed.
+    SGRPlayerLyricsChanged();
     CGRect coverRect = SGRPlayerCoverFrameIn(host);
     BOOL geometry = !CGRectIsNull(coverRect) && sgrShowing(info, host);
     CGRect infoRect = geometry ? [host convertRect:info.bounds fromView:info] : CGRectZero;

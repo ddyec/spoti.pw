@@ -607,9 +607,30 @@ BOOL SGLyricsMayHave(NSString *trackID) {
     @synchronized (sg_missing) { return ![sg_missing containsObject:trackID]; }
 }
 
+static BOOL shouldPublishPrefetchedLines(NSArray<SGKaraokeLine *> *shown, NSArray<SGKaraokeLine *> *fresh) {
+    return fresh.count && (!shown.count || SGKaraokeLinesTiming(fresh) <= SGKaraokeLinesTiming(shown));
+}
+
 void SGLyricsPrefetch(NSString *trackID) {
     if (!trackID.length) return;
-    SGLyricsFetch(trackID, ^(SGLyricsResult *result) {});
+    SGLyricsFetch(trackID, ^(SGLyricsResult *result) {
+        // A custom lyrics page reads the karaoke cache directly. It must not wait for
+        // Spotify's separate color-lyrics/card request to arrive (or ever be made).
+        NSArray<SGKaraokeLine *> *shown = SGKaraokeLinesForTrack(trackID);
+        NSArray<SGKaraokeLine *> *fresh = result.karaokeLines;
+        if (shouldPublishPrefetchedLines(shown, fresh)) {
+            SGKaraokeKeepLines(trackID, fresh);
+            SGLyricsSetCredit(trackID, result.provider);
+            SGLyricsFetchChineseTranslations(trackID, fresh);
+            SGLyricsLog(@"prefetch: %@ publishing %lu %@ lines to display cache from %@ without waiting for Spotify",
+                trackID, (unsigned long)fresh.count, timingName(fresh), result.provider);
+        } else if (fresh.count && shown.count) {
+            SGLyricsEnrichPronunciations(trackID, shown, fresh);
+            SGLyricsFetchChineseTranslations(trackID, shown);
+            SGLyricsLog(@"prefetch: %@ retaining finer display timing %@ over %@",
+                trackID, timingName(shown), timingName(fresh));
+        }
+    });
 }
 
 NSInteger SGLyricsSpotifyHas(NSString *trackID) {
