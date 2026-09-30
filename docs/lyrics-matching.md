@@ -68,8 +68,13 @@ on track changes and instrumental breaks, and polls only while attached to a win
 network or parsing work runs in its update. Unsynced/no-source tracks retain Spotify's preview.
 The redesigned player has its own independent preview, enabled by default at **Player →
 Now playing → Lyrics preview**. It hides while the full lyrics overlay is open or the player
-transition is running. The native hide switch does not control the redesign. Device acceptance
-is required for the preview's bounds and visibility on the installed Spotify version.
+transition is running. The native hide switch does not control the redesign.
+The redesigned preview displays the current original followed by its available translation,
+with smaller, dimmer translation text. Both wrap by width, using the measured cover/title
+gap. Font sizes reduce together down to 10/9 pt when needed; exceptionally long text can
+still exceed this finite preview space and belongs in the full lyrics view. An absent
+translation adds no empty row. Translation arriving later refreshes the same sentence.
+Device acceptance is required for the preview's bounds and visibility on the installed Spotify version.
 With lyrics diagnostics enabled, `preview` events record the track, display state, cache
 count, position and measured rectangles, without recording lyric text. These distinguish a
 disabled hide setting, missing timed lyrics, invalid geometry and a displayed line.
