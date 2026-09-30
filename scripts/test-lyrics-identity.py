@@ -17,6 +17,7 @@ model = section(base / "Lyrics/Lyrics.h", "typedef NS_ENUM(NSUInteger, SGKaraoke
 query = section(base / "LyricsSources/LyricsSources.h", "@interface SGLyricsQuery : NSObject", "typedef void (^SGLyricsAsk)")
 query = query.split("@end")[0] + "@end\n@implementation SGLyricsQuery\n@end\n"
 timing = section(base / "Lyrics/KaraokeTiming.m", "@implementation SGKaraokeWord", "NSArray<SGKaraokeLine *> *SGKaraokeStaticLines(")
+timing += section(base / "Lyrics/KaraokeTiming.m", "SGKaraokeTiming SGKaraokeLinesTiming(", "#pragma mark - Spotify's own bodies")
 lrc = section(base / "LyricsSources/LrcLib.m", "NSArray<SGKaraokeLine *> *SGLyricsLinesFromLRC(", "static SGLyricsResult *resultFrom(")
 qrc = section(base / "LyricsSources/QQMusic.m", "static NSString *qrcBody(", "static SGLyricsResult *resultForLines(")
 aliases = section(base / "LyricsSources/NetEase.m", "static BOOL titleMatches(", "static void get(")
