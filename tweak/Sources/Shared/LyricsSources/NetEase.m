@@ -1,7 +1,4 @@
-// Word timing from NetEase Cloud Music, for the tracks the other sources only line-time, e.g. most
-// of Eminem. It has no text of its own to offer Spotify's page, only the time of every word, so it
-// earns its place at the end of the order rather than the front. Searched by title, artist and
-// length; NetEase censors swear words with asterisks.
+// NetEase word-timed YRC with line-timed LRC fallback and translations from the same recording.
 #import "Core/SGCore.h"
 #import "LyricsSources.h"
 
@@ -111,7 +108,7 @@ static void tryLyrics(NSArray<NSDictionary *> *songs, NSUInteger index, SGLyrics
         return;
     }
     NSDictionary *song = songs[index];
-    get(@"song/lyric/v1", @{@"id": [song[@"id"] description], @"lv": @"1", @"yv": @"1", @"tv": @"-1"}, ^(NSDictionary *root) {
+    get(@"song/lyric/v1", @{@"id": [song[@"id"] description], @"lv": @"1", @"yv": @"1", @"tv": @"-1", @"rv": @"-1", @"yrv": @"-1"}, ^(NSDictionary *root) {
         id yrc = [root[@"yrc"] isKindOfClass:NSDictionary.class] ? root[@"yrc"][@"lyric"] : nil;
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
             NSArray<SGKaraokeLine *> *lines = [yrc isKindOfClass:NSString.class] ? linesFromYrc(yrc) : nil;
@@ -119,7 +116,22 @@ static void tryLyrics(NSArray<NSDictionary *> *songs, NSUInteger index, SGLyrics
                 id lrc = [root[@"lrc"] isKindOfClass:NSDictionary.class] ? root[@"lrc"][@"lyric"] : nil;
                 lines = [lrc isKindOfClass:NSString.class] ? SGLyricsLinesFromLRC(lrc) : nil;
             }
-            BOOL verified = lines.count && (titleMatches(song, query) || SGLyricsRecordingMatches(query.referenceLines, lines));
+            NSString *lrc = [root[@"lrc"] isKindOfClass:NSDictionary.class] && [root[@"lrc"][@"lyric"] isKindOfClass:NSString.class] ? root[@"lrc"][@"lyric"] : nil;
+            NSString *translated = [root[@"tlyric"] isKindOfClass:NSDictionary.class] && [root[@"tlyric"][@"lyric"] isKindOfClass:NSString.class] ? root[@"tlyric"][@"lyric"] : nil;
+            NSString *language = SGLyricsTranslationLanguage() ?: NSLocale.preferredLanguages.firstObject;
+            NSDictionary<NSNumber *, NSString *> *updates = [language.lowercaseString hasPrefix:@"zh"]
+                ? SGLyricsChineseTranslationMap(lines, lrc, translated) : @{};
+            for (NSNumber *index in updates) lines[index.unsignedIntegerValue].translation = updates[index];
+            SGLyricsLog(@"netease: song %@ translation payload %@, attached %lu Chinese translations", song[@"id"],
+                        translated.length ? @"present" : @"absent", (unsigned long)updates.count);
+            NSString *yroma = [root[@"yromalrc"] isKindOfClass:NSDictionary.class] && [root[@"yromalrc"][@"lyric"] isKindOfClass:NSString.class] ? root[@"yromalrc"][@"lyric"] : nil;
+            NSString *roma = [root[@"romalrc"] isKindOfClass:NSDictionary.class] && [root[@"romalrc"][@"lyric"] isKindOfClass:NSString.class] ? root[@"romalrc"][@"lyric"] : nil;
+            NSMutableDictionary<NSNumber *, SGKaraokeLine *> *spoken = [SGLyricsPronunciationMap(lines, lines, SGLyricsLinesFromLRC(yroma)) mutableCopy];
+            NSDictionary *fallback = SGLyricsPronunciationMap(lines, SGLyricsLinesFromLRC(lrc), SGLyricsLinesFromLRC(roma));
+            for (NSNumber *index in fallback) if (!spoken[index]) spoken[index] = fallback[index];
+            for (NSNumber *index in spoken) lines[index.unsignedIntegerValue].pronunciation = spoken[index];
+            SGLyricsLog(@"netease: song %@ pronunciation payload %@, attached %lu lines", song[@"id"], (yroma.length || roma.length) ? @"present" : @"absent", (unsigned long)spoken.count);
+            BOOL verified = lines.count && ((titleMatches(song, query) && SGLyricsArtistMatchCount(artistsOf(song), query.artist)) || SGLyricsRecordingMatches(query.referenceLines, lines));
             dispatch_async(dispatch_get_main_queue(), ^{
                 SGLyricsLog(@"netease: song %@ has %lu lines (word timing %@), evidence %@", song[@"id"], (unsigned long)lines.count,
                             SGKaraokeLinesTiming(lines) == SGKaraokeTimingWords ? @"yes" : @"no", verified ? @"accepted" : @"rejected");
@@ -154,7 +166,7 @@ static void findSongsAt(SGLyricsQuery *query, BOOL requireTitle, NSUInteger atte
             }
             if (![song isKindOfClass:NSDictionary.class] || ![song[@"id"] isKindOfClass:NSNumber.class] || labs([song[@"duration"] integerValue] / 1000 - seconds) > kLengthSlack ||
                 (requireTitle && !titleMatches(song, query) && !SGLyricsTranslatedTitleCandidate(song[@"name"], query))) continue;
-            if (SGLyricsArtistMatchCount(artistsOf(song), query.artist)) {
+            if (SGLyricsArtistMatchCount(artistsOf(song), query.artist) || (query.referenceLines.count && titleMatches(song, query))) {
                 NSMutableDictionary *candidate = [song mutableCopy];
                 candidate[@"sg_searchAttempt"] = @(attempt);
                 [fitting addObject:candidate];
@@ -203,25 +215,26 @@ static void askAt(SGLyricsQuery *query, NSUInteger attempt, void (^done)(SGLyric
 
 SGLyricsAsk SGNetEaseAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *result)) { askAt(query, 0, done); };
 
-static void tryTranslations(NSArray<NSNumber *> *ids, NSUInteger index, NSArray<SGKaraokeLine *> *target,
+static void tryTranslations(NSArray<NSDictionary *> *ids, NSUInteger index, NSArray<SGKaraokeLine *> *target, SGLyricsQuery *query,
                             SGLyricsTranslationReply done) {
     if (index >= ids.count) { done(nil, nil); return; }
-    get(@"song/lyric/v1", @{@"id": ids[index].stringValue, @"lv": @"-1", @"tv": @"-1"}, ^(NSDictionary *root) {
+    get(@"song/lyric/v1", @{@"id": [ids[index][@"id"] description], @"lv": @"-1", @"tv": @"-1", @"rv": @"-1", @"yrv": @"-1"}, ^(NSDictionary *root) {
         NSDictionary *original = [root[@"lrc"] isKindOfClass:NSDictionary.class] ? root[@"lrc"] : nil;
         NSDictionary *translated = [root[@"tlyric"] isKindOfClass:NSDictionary.class] ? root[@"tlyric"] : nil;
         NSString *lrc = [original[@"lyric"] isKindOfClass:NSString.class] ? original[@"lyric"] : nil;
         NSString *tlyric = [translated[@"lyric"] isKindOfClass:NSString.class] ? translated[@"lyric"] : nil;
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
             NSUInteger overlap = tlyric.length ? SGLyricsOriginalOverlap(target, lrc) : 0;
+            BOOL identity = SGLyricsArtistMatchCount(artistsOf(ids[index]), query.artist) || SGLyricsRecordingMatches(target, SGLyricsLinesFromLRC(lrc));
             dispatch_async(dispatch_get_main_queue(), ^{
-                SGLyricsLog(@"netease: translation candidate %@, %lu original lines match", ids[index], (unsigned long)overlap);
-                if (overlap >= MIN((NSUInteger)2, target.count)) done(lrc, tlyric);
-                else tryTranslations(ids, index + 1, target, done);
+                SGLyricsLog(@"netease: translation candidate %@, %lu original lines match, recording identity %@", ids[index][@"id"], (unsigned long)overlap, identity ? @"accepted" : @"rejected");
+                if (identity && overlap >= MIN((NSUInteger)2, target.count)) done(lrc, tlyric);
+                else tryTranslations(ids, index + 1, target, query, done);
             });
         });
     });
 }
 
 void SGNetEaseTranslationAsk(SGLyricsQuery *query, NSArray<SGKaraokeLine *> *target, SGLyricsTranslationReply done) {
-    findSongsAt(query, NO, 0, ^(NSArray<NSDictionary *> *songs) { tryTranslations([songs valueForKey:@"id"], 0, target, done); });
+    findSongsAt(query, NO, 0, ^(NSArray<NSDictionary *> *songs) { tryTranslations(songs, 0, target, query, done); });
 }

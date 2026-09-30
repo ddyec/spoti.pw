@@ -121,7 +121,7 @@ static void finish(UIViewController *unit, BOOL changed) {
 
 %hook _TtC22Lyrics_NPVContainerKit19LyricsContainerView
 - (void)setHidden:(BOOL)hidden {
-    %orig(SGHidden(SGHideLyricsInline) ? YES : hidden);
+    %orig(SGHidden(SGHideLyricsInline) ? YES : (SGNativeLyricsPreviewAvailable() ? NO : hidden));
 }
 - (void)didMoveToWindow {
     %orig;

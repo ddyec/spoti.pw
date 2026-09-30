@@ -259,11 +259,12 @@ static BOOL named(SGLyricsQuery *query);
 // timed lyrics; waiting for QQ or NetEase here would delay Spotify's lyrics card.
 static NSMutableDictionary<NSString *, NSArray<SGKaraokeLine *> *> *sg_translationAsked;
 
+// Han characters also occur in Japanese; they cannot establish that an original is Chinese.
 static BOOL needsChineseTranslations(NSArray<SGKaraokeLine *> *lines) {
     for (SGKaraokeLine *line in lines) {
         NSString *original = SGKaraokeLineText(line);
         if ([original rangeOfCharacterFromSet:NSCharacterSet.alphanumericCharacterSet].location != NSNotFound &&
-            !SGLyricsContainsHan(line.translation) && !SGLyricsContainsHan(original)) return YES;
+            !SGLyricsContainsHan(line.translation)) return YES;
     }
     return NO;
 }
@@ -297,11 +298,20 @@ void SGLyricsFetchChineseTranslations(NSString *trackID, NSArray<SGKaraokeLine *
     if (![language.lowercaseString hasPrefix:@"zh"]) return;
     dispatch_async(dispatch_get_main_queue(), ^{
         if (!sg_translationAsked) sg_translationAsked = [NSMutableDictionary dictionary];
-        if (sg_translationAsked[trackID] == lines || !needsChineseTranslations(lines)) return;
+        if (sg_translationAsked[trackID] == lines) {
+            SGLyricsLog(@"translation: %@ skipped, this line set already queried", trackID);
+            return;
+        }
+        if (!needsChineseTranslations(lines)) {
+            SGLyricsLog(@"translation: %@ skipped, no untranslated text lines", trackID);
+            return;
+        }
         SGLyricsQuery *query = queryFor(trackID);
         if (!named(query) || query.seconds <= 0) return;
         if (sg_translationAsked.count >= kKeptTracks) [sg_translationAsked removeAllObjects];
+        query.referenceLines = lines;
         sg_translationAsked[trackID] = lines;
+        SGLyricsLog(@"translation: %@ querying Chinese translations for %lu lines", trackID, (unsigned long)lines.count);
         NSUInteger failures = atomic_load(&sg_failures);
         SGQQMusicTranslationAsk(query, lines, ^(NSString *original, NSString *translated) {
             if (sg_translationAsked[trackID] != lines) return;
@@ -318,6 +328,30 @@ void SGLyricsFetchChineseTranslations(NSString *trackID, NSArray<SGKaraokeLine *
                     });
                 });
             });
+        });
+    });
+}
+
+// A finer Spotify clock can stay visible while a verified provider supplies pronunciation.
+void SGLyricsEnrichPronunciations(NSString *trackID, NSArray<SGKaraokeLine *> *target, NSArray<SGKaraokeLine *> *source) {
+    if (!trackID.length || !target.count || !source.count || target == source) return;
+    NSMutableArray *spoken = [NSMutableArray array];
+    for (SGKaraokeLine *line in source) if (line.pronunciation) [spoken addObject:line.pronunciation];
+    if (!spoken.count) return;
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+        NSDictionary<NSNumber *, SGKaraokeLine *> *updates = SGLyricsPronunciationMap(target, source, spoken);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (SGKaraokeLinesForTrack(trackID) != target) return;
+            NSUInteger added = 0;
+            for (NSNumber *index in updates) {
+                SGKaraokeLine *line = target[index.unsignedIntegerValue];
+                if (line.pronunciation) continue;
+                line.pronunciation = updates[index]; added++;
+            }
+            if (added) {
+                SGLyricsLog(@"lyrics: added %lu provider pronunciation lines for %@", (unsigned long)added, trackID);
+                [NSNotificationCenter.defaultCenter postNotificationName:SGLyricsTranslationUpdatedNotification object:trackID];
+            }
         });
     });
 }

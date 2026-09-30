@@ -29,3 +29,35 @@ of an earlier unknown introductory row. This does not apply a global time shift.
 and parsers on macOS. Its fixtures are synthetic. Windows can check script extraction,
 source patterns and layer imports, but cannot establish iOS runtime acceptance.
 Lyrics diagnostics can export candidate decisions, network status and the final source.
+
+Regional releases can have completely different artist credits. A matching title and
+known duration may enter an evidence stage once Spotify originals exist. With no
+shared artist, downloaded originals must meet the full recording-evidence threshold;
+a title and duration alone never establish identity. This also applies to translation
+lookups and does not use a per-song or per-artist alias table.
+
+NetEase attaches Chinese tlyric translations from the same lyric response, using the
+existing original-text and timestamp alignment, before returning its lines. Han in
+an original is not a language detector: Japanese originals containing kanji remain
+eligible for missing Chinese translations. Diagnostics distinguish a missing payload,
+an alignment yielding zero translations, and a lookup skipped because translations
+already exist or that exact line set has been queried.
+
+Pronunciation uses provider data only: NetEase romalrc/yromalrc, QQ encrypted roma
+QRC with LRC fallback, and optional KRC language type-0 syllables. Word clocks are
+retained when available; LRC pronunciation is estimated over the displayed line.
+Original-text groups and timestamp agreement prevent borrowing an unrelated row.
+Malformed KRC row/word counts suppress pronunciation, keeping original lyrics intact.
+A finer Spotify original can receive aligned pronunciation from the selected provider.
+The existing redesigned lyrics corner menu exposes Pronunciation when data is present.
+No synthesized Japanese kanji reading or machine translation is introduced.
+# Native player preview
+
+The native player now renders the shared cache's current timed line inside its existing
+`LyricsContainerView`, rather than depending on Spotify's separate preview model. This is
+enabled with any custom lyrics source unless **Hide on the player → Lyrics preview** is on.
+It uses the same playback clock and lead-line selection as the other lyric surfaces, clears
+on track changes and instrumental breaks, and polls only while attached to a window. No
+network or parsing work runs in its update. Unsynced/no-source tracks retain Spotify's preview.
+The redesigned player continues to use its existing full lyrics overlay. Device acceptance
+is required for the preview's bounds and visibility on the installed Spotify version.

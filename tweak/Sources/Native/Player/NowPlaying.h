@@ -30,6 +30,8 @@
 // it; the hooks read the keys above.
 #define SGKeyPlayerLyricsOnly @"spotifyglass.hide.playerLyricsOnly"
 void SGSetPlayerLyricsOnly(BOOL on);
+// The native preview can use the shared lyrics cache even when Spotify has no preview model.
+BOOL SGNativeLyricsPreviewAvailable(void);
 
 @class SGModRow, SGModSection;
 // PlayerSettings.m: the player screen's sections of the Player page, the Queue & devices page and the

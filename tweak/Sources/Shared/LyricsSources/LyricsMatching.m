@@ -105,18 +105,24 @@ BOOL SGLyricsTimedCredit(NSString *text) {
 NSString *SGLyricsSearchTitle(NSString *title) {
     if (![title isKindOfClass:NSString.class]) return @"";
     NSString *value = [title precomposedStringWithCompatibilityMapping];
-    static NSRegularExpression *suffix, *theme, *version;
+    static NSRegularExpression *suffix, *theme, *version, *featured;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
+        featured = [NSRegularExpression regularExpressionWithPattern:
+            @"\\s*[\\(\\[（【](?:feat\\.?|ft\\.?|featuring)\\s+[^)\\]）】]+[)\\]）】]\\s*$"
+            options:NSRegularExpressionCaseInsensitive error:nil];
         suffix = [NSRegularExpression regularExpressionWithPattern:
             @"\\s+(?:[-–—:]\\s+)(.+)$|\\s*[\\(\\[（【](.+)[\\)\\]）】]\\s*$" options:0 error:nil];
         theme = [NSRegularExpression regularExpressionWithPattern:
             @"\\b(?:theme|soundtrack|OST)\\b|主题曲|主題曲|片头曲|片頭曲|片尾曲|插曲|印象曲"
             options:NSRegularExpressionCaseInsensitive error:nil];
         version = [NSRegularExpression regularExpressionWithPattern:
-            @"\\b(?:live|remix|mix|bootleg|cover|instrumental|acoustic|karaoke|demo|remaster(?:ed)?|piano|sped[ -]+up|slowed)\\b|现场|現場|伴奏|翻唱|混音|加速|降速|重制|重製|片段|剪辑|剪輯|钢琴|鋼琴|纯音乐|純音樂"
+            @"\\b(?:live|remix|mix|bootleg|cover|instrumental|acoustic|karaoke|demo|remaster(?:ed)?|piano|sped[ -]+up|slowed)\\b|现场|現場|伴奏|翻唱|混音|加速|降速|重制|重製|片段|剪辑|剪輯|钢琴|鋼琴|纯音乐|純音樂|摇滚|搖滾|爵士|重金属|重金屬|翻奏|演绎|演繹"
             options:NSRegularExpressionCaseInsensitive error:nil];
     });
+    // Featured performers are credits, often absent from another catalogue's title.
+    // Strip only a trailing feature-credit bracket; live/remix markers stay intact.
+    value = [featured stringByReplacingMatchesInString:value options:0 range:NSMakeRange(0, value.length) withTemplate:@""];
     // Check the whole suffix, including a nested version such as
     // Song - Soundtrack Theme (Instrumental), before removing anything.
     NSTextCheckingResult *match = [suffix firstMatchInString:value options:0 range:NSMakeRange(0, value.length)];
@@ -128,7 +134,7 @@ NSString *SGLyricsSearchTitle(NSString *title) {
                 stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
         }
     }
-    return [title stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    return [value stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
 }
 
 BOOL SGLyricsTitleMatches(NSString *candidate, NSString *wanted) {
@@ -149,7 +155,7 @@ BOOL SGLyricsTitleMatches(NSString *candidate, NSString *wanted) {
     // Chinese-only substrings are not evidence of a bilingual alias.
     if (SGLyricsContainsHan(shorter)) return NO;
     for (NSString *version in @[@"现场", @"現場", @"伴奏", @"翻唱", @"混音", @"加速", @"降速",
-                                @"片段", @"剪辑", @"剪輯", @"演绎", @"演繹", @"钢琴", @"鋼琴", @"纯音乐", @"純音樂", @"重制", @"重製"]) {
+                                @"片段", @"剪辑", @"剪輯", @"演绎", @"演繹", @"钢琴", @"鋼琴", @"纯音乐", @"純音樂", @"重制", @"重製", @"摇滚", @"搖滾", @"爵士", @"重金属", @"重金屬", @"翻奏"]) {
         if ([rest containsString:version]) return NO;
     }
     return YES;
@@ -163,11 +169,17 @@ BOOL SGLyricsTranslatedTitleCandidate(NSString *candidate, SGLyricsQuery *query)
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         version = [NSRegularExpression regularExpressionWithPattern:
-            @"\\b(?:live|remix|mix|edit|extended|bootleg|cover|instrumental|acoustic|karaoke|demo|piano|remaster(?:ed)?|sped[ -]+up|slowed)\\b|现场|現場|伴奏|翻唱|混音|加速|降速|片段|剪辑|剪輯|重制|重製|钢琴|鋼琴|纯音乐|純音樂"
+            @"\\b(?:live|remix|mix|edit|extended|bootleg|cover|instrumental|acoustic|karaoke|demo|piano|remaster(?:ed)?|sped[ -]+up|slowed)\\b|现场|現場|伴奏|翻唱|混音|加速|降速|片段|剪辑|剪輯|重制|重製|钢琴|鋼琴|纯音乐|純音樂|摇滚|搖滾|爵士|重金属|重金屬|翻奏|演绎|演繹"
             options:NSRegularExpressionCaseInsensitive error:nil];
     });
     for (NSString *title in @[a, b]) if ([version firstMatchInString:title options:0 range:NSMakeRange(0, title.length)]) return NO;
     return YES; // Tentative only: the downloaded original lyrics MUST validate it.
+}
+
+// An identical/bilingual title can bridge different regional artist credits only
+// tentatively. Callers must also check duration and validate the downloaded original.
+BOOL SGLyricsTitleEvidenceCandidate(NSString *candidate, SGLyricsQuery *query) {
+    return query.referenceLines.count && SGLyricsTitleMatches(candidate, query.title);
 }
 
 static NSDictionary<NSString *, NSArray<NSNumber *> *> *textIndex(NSArray<SGKaraokeLine *> *lines) {
@@ -348,5 +360,67 @@ NSDictionary<NSNumber *, NSString *> *SGLyricsChineseTranslationMap(NSArray<SGKa
         NSString *text = comparable(SGKaraokeLineText(line));
         if (!updates[@(i)] && ![ambiguous containsObject:text] && repeated[text]) updates[@(i)] = repeated[text];
     }];
+    return updates;
+}
+
+
+NSDictionary<NSNumber *, SGKaraokeLine *> *SGLyricsPronunciationMap(NSArray<SGKaraokeLine *> *target,
+    NSArray<SGKaraokeLine *> *original, NSArray<SGKaraokeLine *> *pronunciation) {
+    NSMutableDictionary<NSNumber *, SGKaraokeLine *> *updates = [NSMutableDictionary dictionary];
+    if (!target.count || !original.count || !pronunciation.count) return updates;
+    NSDictionary<NSNumber *, NSNumber *> *pairs = aligned(target, original);
+    NSMutableIndexSet *used = [NSMutableIndexSet indexSet];
+    NSMutableDictionary<NSNumber *, NSNumber *> *offsets = [NSMutableDictionary dictionary];
+    for (NSUInteger i = 0; i < original.count; i++) {
+        NSNumber *destination = pairs[@(i)];
+        if (!destination) continue;
+        NSInteger nearest = 801;
+        NSUInteger best = NSNotFound;
+        for (NSUInteger j = 0; j < pronunciation.count; j++) {
+            if ([used containsIndex:j]) continue;
+            NSInteger gap = labs(pronunciation[j].start - original[i].start);
+            if (i && labs(pronunciation[j].start - original[i - 1].start) < gap) continue;
+            if (i + 1 < original.count && labs(pronunciation[j].start - original[i + 1].start) < gap) continue;
+            NSString *text = SGKaraokeLineText(pronunciation[j]);
+            BOOL latin = [text rangeOfCharacterFromSet:[NSCharacterSet characterSetWithCharactersInString:
+                @"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"]].location != NSNotFound;
+            if (gap < nearest && latin && !SGLyricsContainsHan(text) &&
+                ![comparable(text) isEqualToString:comparable(SGKaraokeLineText(original[i]))]) {
+                nearest = gap; best = j;
+            }
+        }
+        if (best == NSNotFound) continue;
+        [used addIndex:best];
+        SGKaraokeLine *of = target[destination.unsignedIntegerValue];
+        SGKaraokeLine *spoken = pronunciation[best];
+        SGKaraokeLine *attached = updates[destination];
+        if (!attached) {
+            attached = [SGKaraokeLine new];
+            attached.start = of.start; attached.end = of.end; attached.align = of.align;
+            attached.timing = spoken.timing;
+            attached.words = @[];
+            offsets[destination] = @(of.start - original[i].start);
+            updates[destination] = attached;
+        }
+        NSMutableArray<SGKaraokeWord *> *words = [attached.words mutableCopy];
+        // Keep timed syllables when available. LRC only supplies line starts, so
+        // estimate over the displayed sentence instead of claiming word precision.
+        if (spoken.timing != SGKaraokeTimingWords) {
+            NSString *text = words.count ? [SGKaraokeLineText(attached) stringByAppendingFormat:@" %@", SGKaraokeLineText(spoken)] : SGKaraokeLineText(spoken);
+            SGKaraokeLine *estimated = SGKaraokeEstimatedLines(@[@(of.start), @(MAX(of.end, of.start + 1))], @[text, @""]).firstObject;
+            attached.words = estimated.words;
+            attached.timing = SGKaraokeTimingLine;
+        } else {
+            NSInteger offset = offsets[destination].integerValue;
+            for (SGKaraokeWord *source in spoken.words) {
+                SGKaraokeWord *word = [SGKaraokeWord new];
+                word.text = source.text; word.start = source.start + offset; word.end = source.end + offset;
+                word.joined = source.joined;
+                [words addObject:word];
+            }
+            attached.words = words;
+            attached.end = MAX(of.end, words.lastObject.end);
+        }
+    }
     return updates;
 }

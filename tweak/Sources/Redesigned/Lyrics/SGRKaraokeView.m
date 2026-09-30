@@ -1354,11 +1354,11 @@ typedef struct {
 
 - (void)translationUpdated:(NSNotification *)notification {
     if (![_track isEqualToString:notification.object] || !_lines) return;
-    BOOL available = NO;
+    _hasSpoken = _hasTranslation = NO;
     for (SGKaraokeLine *line in _lines) {
-        if (line.translation.length) { available = YES; break; }
+        _hasSpoken = _hasSpoken || line.pronunciation || line.backing.pronunciation;
+        _hasTranslation = _hasTranslation || line.translation.length;
     }
-    _hasTranslation = available;
     // The source may fill previously empty rows while the translation control was already on.
     // Rebuild those labels even when availability itself did not change.
     [self restyle];

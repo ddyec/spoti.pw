@@ -125,8 +125,10 @@ NSArray<NSString *> *SGLyricsTranslationLanguages(void);
 NSArray<NSString *> *SGLyricsTranslationLanguageNames(void);
 // The tag of the language asked for, nil for whatever the source has.
 NSString *SGLyricsTranslationLanguage(void);
-// Posted on the main queue with the Spotify track id as object when a late translation arrives.
+// Posted on the main queue with the track id when translation or pronunciation arrives.
 extern NSNotificationName const SGLyricsTranslationUpdatedNotification;
+// Donate pronunciation without replacing the displayed original text or timing.
+void SGLyricsEnrichPronunciations(NSString *trackID, NSArray<SGKaraokeLine *> *target, NSArray<SGKaraokeLine *> *source);
 // Adds Chinese translations to the lines actually shown in the lyrics view. The original lines
 // are returned immediately; QQ Music and NetEase are queried only after the page has its lyrics.
 void SGLyricsFetchChineseTranslations(NSString *trackID, NSArray<SGKaraokeLine *> *lines);
@@ -134,6 +136,7 @@ void SGLyricsFetchChineseTranslations(NSString *trackID, NSArray<SGKaraokeLine *
 BOOL SGLyricsTitleMatches(NSString *candidate, NSString *wanted);
 NSString *SGLyricsSearchTitle(NSString *title);
 NSArray<NSString *> *SGLyricsSearchArtists(NSString *artists);
+BOOL SGLyricsTitleEvidenceCandidate(NSString *candidate, SGLyricsQuery *query);
 BOOL SGLyricsTranslatedTitleCandidate(NSString *candidate, SGLyricsQuery *query);
 BOOL SGLyricsRecordingMatches(NSArray<SGKaraokeLine *> *target, NSArray<SGKaraokeLine *> *candidate);
 void SGLyricsNoteReference(NSString *trackID, NSArray<SGKaraokeLine *> *lines);
@@ -148,6 +151,9 @@ BOOL SGLyricsTimedCredit(NSString *text);
 NSUInteger SGLyricsOriginalOverlap(NSArray<SGKaraokeLine *> *target, NSString *originalLRC);
 NSDictionary<NSNumber *, NSString *> *SGLyricsChineseTranslationMap(NSArray<SGKaraokeLine *> *target,
                                                                     NSString *originalLRC, NSString *translatedLRC);
+// Align provider pronunciation to verified original text; native word times are retained.
+NSDictionary<NSNumber *, SGKaraokeLine *> *SGLyricsPronunciationMap(NSArray<SGKaraokeLine *> *target,
+    NSArray<SGKaraokeLine *> *original, NSArray<SGKaraokeLine *> *pronunciation);
 typedef void (^SGLyricsTranslationReply)(NSString *originalLRC, NSString *translatedLRC);
 void SGQQMusicTranslationAsk(SGLyricsQuery *query, NSArray<SGKaraokeLine *> *target, SGLyricsTranslationReply done);
 void SGNetEaseTranslationAsk(SGLyricsQuery *query, NSArray<SGKaraokeLine *> *target, SGLyricsTranslationReply done);

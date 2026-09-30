@@ -177,6 +177,7 @@ static NSData *decide(NSString *track, SGLyricsResult *chain, NSData *spotifyBod
     }
     if (viewLines) {
         SGKaraokeKeepLines(track, viewLines);
+        SGLyricsEnrichPronunciations(track, viewLines, chain.karaokeLines);
         SGLyricsFetchChineseTranslations(track, viewLines);
     }
     SGLyricsSetCredit(track, credit);
@@ -470,7 +471,10 @@ static void finishSpotify(id delegate, NSURLSession *session, NSURLSessionDataTa
         SGLyricsFetch(track, ^(SGLyricsResult *chain) {
             if (!chain.karaokeLines.count) return;
             NSArray<SGKaraokeLine *> *shown = SGKaraokeLinesForTrack(track);
-            if (shown && SGKaraokeLinesTiming(shown) < SGKaraokeLinesTiming(chain.karaokeLines)) return;
+            if (shown && SGKaraokeLinesTiming(shown) < SGKaraokeLinesTiming(chain.karaokeLines)) {
+                SGLyricsEnrichPronunciations(track, shown, chain.karaokeLines);
+                return;
+            }
             SGKaraokeKeepLines(track, chain.karaokeLines);
             SGLyricsSetCredit(track, chain.provider);
             SGLyricsFetchChineseTranslations(track, chain.karaokeLines);

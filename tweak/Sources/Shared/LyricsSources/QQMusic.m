@@ -23,13 +23,15 @@ static NSString *singers(NSDictionary *song) {
 static BOOL matchesRecording(NSDictionary *song, SGLyricsQuery *query) {
     if (query.seconds > 0 && [song[@"interval"] respondsToSelector:@selector(integerValue)] &&
         labs([song[@"interval"] integerValue] - query.seconds) > 6) return NO;
-    return SGLyricsArtistMatchCount(singers(song), query.artist) > 0;
+    return SGLyricsArtistMatchCount(singers(song), query.artist) > 0 ||
+        (query.seconds > 0 && [song[@"interval"] integerValue] > 0 &&
+         SGLyricsTitleEvidenceCandidate(song[@"title"] ?: song[@"songname"], query));
 }
 
 static void lyricReply(NSNumber *songID, BOOL translation, BOOL qrc, void (^done)(NSDictionary *data)) {
     NSDictionary *request = @{@"music.musichallSong.PlayLyricInfo.GetPlayLyricInfo": @{
         @"method": @"GetPlayLyricInfo", @"module": @"music.musichallSong.PlayLyricInfo",
-        @"param": @{@"crypt": @0, @"qrc": qrc ? @1 : @0, @"trans": translation ? @1 : @0, @"songID": songID}}};
+        @"param": @{@"crypt": @0, @"qrc": qrc ? @1 : @0, @"trans": translation ? @1 : @0, @"roma": @1, @"songID": songID}}};
     SGLyricsPostJSON([NSURL URLWithString:kMusicu], headers(), request, ^(id root) {
         id value = [root isKindOfClass:NSDictionary.class]
             ? root[@"music.musichallSong.PlayLyricInfo.GetPlayLyricInfo"] : nil;
@@ -55,8 +57,8 @@ static NSString *decoded(NSDictionary *data, NSString *key) {
     return bytes ? [[NSString alloc] initWithData:bytes encoding:NSUTF8StringEncoding] : nil;
 }
 
-static NSString *decodedQRC(NSDictionary *data) {
-    NSString *hex = [data[@"lyric"] isKindOfClass:NSString.class] ? data[@"lyric"] : nil;
+static NSString *decodedQRCKey(NSDictionary *data, NSString *key) {
+    NSString *hex = [data[key] isKindOfClass:NSString.class] ? data[key] : nil;
     if (!hex.length || hex.length > 2 * 1024 * 1024 || hex.length % 16) return nil;
     NSMutableData *encrypted = [NSMutableData dataWithLength:hex.length / 2];
     const char *source = hex.UTF8String;
@@ -174,10 +176,16 @@ static SGLyricsResult *resultForLines(NSArray<SGKaraokeLine *> *lines) {
 }
 
 static void lyricsForSong(NSNumber *songID, void (^done)(SGLyricsResult *)) {
-    lyricReply(songID, NO, YES, ^(NSDictionary *data) {
+    lyricReply(songID, YES, YES, ^(NSDictionary *data) {
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
-            NSString *xml = decodedQRC(data);
+            NSString *xml = decodedQRCKey(data, @"lyric");
             NSArray<SGKaraokeLine *> *lines = xml ? linesFromQRC(xml) : nil;
+            NSString *romaXML = decodedQRCKey(data, @"roma");
+            NSString *romaText = romaXML ?: decoded(data, @"roma");
+            NSArray *romanLines = linesFromQRC(romaText) ?: SGLyricsLinesFromLRC(romaText);
+            NSDictionary<NSNumber *, SGKaraokeLine *> *spoken = SGLyricsPronunciationMap(lines, lines, romanLines);
+            for (NSNumber *index in spoken) lines[index.unsignedIntegerValue].pronunciation = spoken[index];
+            SGLyricsLog(@"qqmusic: song %@ attached %lu pronunciation lines from QRC", songID, (unsigned long)spoken.count);
             dispatch_async(dispatch_get_main_queue(), ^{
                 if (lines.count) {
                     SGLyricsLog(@"qqmusic: QRC %@ decoded %lu word timed lines", songID, (unsigned long)lines.count);
@@ -185,10 +193,16 @@ static void lyricsForSong(NSNumber *songID, void (^done)(SGLyricsResult *)) {
                     return;
                 }
                 SGLyricsLog(@"qqmusic: QRC %@ unavailable; trying LRC", songID);
-                lyricReply(songID, NO, NO, ^(NSDictionary *lrcData) {
+                lyricReply(songID, YES, NO, ^(NSDictionary *lrcData) {
                     NSString *lrc = decoded(lrcData, @"lyric");
                     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
                         SGLyricsResult *result = resultForLines(lrc ? SGLyricsLinesFromLRC(lrc) : nil);
+                        NSString *romaXML = decodedQRCKey(lrcData, @"roma");
+                        NSString *romaText = romaXML ?: decoded(lrcData, @"roma");
+                        NSArray *romanLines = linesFromQRC(romaText) ?: SGLyricsLinesFromLRC(romaText);
+                        NSDictionary<NSNumber *, SGKaraokeLine *> *spoken = SGLyricsPronunciationMap(result.karaokeLines, result.karaokeLines, romanLines);
+                        for (NSNumber *index in spoken) result.karaokeLines[index.unsignedIntegerValue].pronunciation = spoken[index];
+                        SGLyricsLog(@"qqmusic: song %@ attached %lu pronunciation lines from LRC", songID, (unsigned long)spoken.count);
                         dispatch_async(dispatch_get_main_queue(), ^{ done(result); });
                     });
                 });
@@ -288,7 +302,7 @@ static void tryLyrics(NSArray<NSDictionary *> *ids, NSUInteger index, SGLyricsQu
     NSDictionary *song = ids[index];
     lyricsForSong(song[@"id"], ^(SGLyricsResult *result) {
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
-            BOOL verified = result && (matches(song, query) || SGLyricsRecordingMatches(query.referenceLines, result.karaokeLines));
+            BOOL verified = result && ((matches(song, query) && SGLyricsArtistMatchCount(singers(song), query.artist)) || SGLyricsRecordingMatches(query.referenceLines, result.karaokeLines));
             dispatch_async(dispatch_get_main_queue(), ^{
                 SGLyricsLog(@"qqmusic: candidate %@ title '%@' recording evidence %@", song[@"id"], song[@"title"], verified ? @"accepted" : @"rejected");
                 if (verified) done(result);
@@ -324,10 +338,11 @@ static void tryTranslations(NSArray<NSDictionary *> *songs, NSUInteger index, SG
         NSString *translated = decoded(data, @"trans");
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
             NSUInteger overlap = translated.length ? SGLyricsOriginalOverlap(target, original) : 0;
+            BOOL identity = SGLyricsArtistMatchCount(singers(song), query.artist) || SGLyricsRecordingMatches(target, SGLyricsLinesFromLRC(original));
             dispatch_async(dispatch_get_main_queue(), ^{
-                SGLyricsLog(@"qqmusic: translation candidate %@ title %@, %lu original lines match",
-                      songID, song[@"title"], (unsigned long)overlap);
-                if (overlap >= MIN((NSUInteger)2, target.count)) done(original, translated);
+                SGLyricsLog(@"qqmusic: translation candidate %@ title %@, %lu original lines match, recording identity %@",
+                      songID, song[@"title"], (unsigned long)overlap, identity ? @"accepted" : @"rejected");
+                if (identity && overlap >= MIN((NSUInteger)2, target.count)) done(original, translated);
                 else tryTranslations(songs, index + 1, query, target, done);
             });
         });

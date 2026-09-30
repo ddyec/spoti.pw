@@ -98,6 +98,8 @@ void SGLyricsDiagnosticCandidate(NSString *provider, SGLyricsQuery *query, NSStr
     BOOL titleOK = !requireTitle || SGLyricsTitleMatches(title, query.title);
     NSString *titleCheck = titleOK ? @"pass" : SGLyricsTranslatedTitleCandidate(title, query) ? @"requires original-text evidence" : @"reject";
     NSUInteger artistsOK = SGLyricsArtistMatchCount(artists, query.artist);
+    if (!artistsOK && SGLyricsTitleEvidenceCandidate(title, query))
+        SGLyricsLog(@"candidate: track %@ source %@ artist mismatch requires downloaded original-text evidence", query.trackID, provider);
     NSInteger gap = labs(seconds - query.seconds);
     NSString *duration = seconds <= 0 || query.seconds <= 0 ? @"unknown" : gap <= slack ? @"pass" : @"reject";
     SGLyricsLog(@"candidate: track %@ source %@ title '%@' artists '%@' duration %lds; title %@, artist matches %lu, duration %@ (gap %lds, tolerance %lds)",

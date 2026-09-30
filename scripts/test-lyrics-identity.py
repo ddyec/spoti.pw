@@ -21,10 +21,14 @@ lrc = section(base / "LyricsSources/LrcLib.m", "NSArray<SGKaraokeLine *> *SGLyri
 qrc = section(base / "LyricsSources/QQMusic.m", "static NSString *qrcBody(", "static SGLyricsResult *resultForLines(")
 aliases = section(base / "LyricsSources/NetEase.m", "static BOOL titleMatches(", "static void get(")
 matching = (base / "LyricsSources/LyricsMatching.m").read_text(encoding="utf-8").replace('#import "LyricsSources.h"', "")
+krc = section(base / "LyricsSources/KuGou.m", "static NSArray *krcPronunciationRows(", "static void deliverCandidate(")
+qqMetadata = section(base / "LyricsSources/QQMusic.m", "static NSString *singers(", "static void lyricReply(")
+qqEligibility = section(base / "LyricsSources/QQMusic.m", "static BOOL matches(", "static NSString *decoded(")
+eligibility = section(base / "LyricsSources/LyricsSources.m", "static BOOL needsChineseTranslations(", "// Calculate off main;")
 source = ("#import <Foundation/Foundation.h>\n#import <dispatch/dispatch.h>\n#include <stdio.h>\n#include <stdlib.h>\n"
           + model + query + "BOOL SGLyricsTimedCredit(NSString *);\n"
           + "BOOL SGLyricsDiagnosticsEnabled(void) { return NO; }\nvoid SGLyricsLog(NSString *format, ...) {}\n"
-          + timing + lrc + matching + aliases + qrc)
+          + timing + lrc + matching + aliases + qrc + eligibility + qqMetadata + qqEligibility + krc)
 tests = r'''
 static void check(BOOL ok, NSString *label) {
     if (!ok) { NSLog(@"FAIL: %@", label); exit(1); }
@@ -80,7 +84,19 @@ int main(void) {
         check(SGLyricsTranslatedTitleCandidate(@"希望有羽毛和翅膀", query), @"Chinese title enters evidence stage");
         check(!SGLyricsTranslatedTitleCandidate(@"希望有羽毛和翅膀（伴奏）", query), @"alias does not erase version");
         check(!SGLyricsRecordingMatches(split, SGLyricsLinesFromLRC(@"[00:08]Other words from a different song\n[00:16]These lights have never returned")), @"unrelated lyrics rejected");
+        check(SGLyricsTitleEvidenceCandidate(@"Hope Is the Thing With Feathers", query), @"same title can enter artist evidence stage");
+        check(!SGLyricsTitleEvidenceCandidate(@"Hope Is the Thing With Feathers (Live)", query), @"artist evidence cannot erase live version");
+        check(!SGLyricsTitleEvidenceCandidate(@"Another Song", query), @"artist evidence cannot admit unrelated title");
+        NSDictionary *regional = @{@"title": @"Hope Is the Thing With Feathers", @"interval": @200,
+                                     @"singer": @[@{@"name": @"地区发行方"}]};
+        query.artist = @"International Label";
+        query.seconds = 200;
+        check(eligible(regional, query, YES), @"regional artist mismatch enters original evidence stage");
+        check(!eligible(@{@"title": @"Hope Is the Thing With Feathers", @"interval": @240,
+                          @"singer": @[@{@"name": @"地区发行方"}]}, query, YES), @"artist mismatch cannot bypass duration");
         query.referenceLines = nil;
+        check(!eligible(regional, query, YES), @"regional artist mismatch needs original evidence");
+        check(!SGLyricsTitleEvidenceCandidate(@"Hope Is the Thing With Feathers", query), @"artist mismatch cannot bypass missing original evidence");
         check(!SGLyricsTranslatedTitleCandidate(@"希望有羽毛和翅膀", query), @"no original evidence, no guessed alias");
         check(titleMatches(@{@"name": @"希望有羽毛和翅膀", @"alias": @[@"Hope Is the Thing With Feathers"]}, query), @"explicit catalogue alias without original lyrics");
         check(SGLyricsArtistMatchCount(@"HOYO-MiX", @"Chevy, Robin, HOYO-MiX") == 1, @"label retained while singers differ");
@@ -98,6 +114,33 @@ int main(void) {
         NSArray *qrc = linesFromQRC(@"[0,1000]歌手：(0,100)某某(100,100)\n[1000,1000]作词/作曲：(1000,100)某某(1100,100)\n[2000,9000]The (8000,100)paper (8100,100)birds (8200,100)fly(8300,100)");
         check(qrc.count == 1 && ((SGKaraokeLine *)qrc[0]).start == 8000 && ((SGKaraokeLine *)qrc[0]).end == 8400,
               @"credits removed and real word clock controls start/end");
+        NSArray *japanese = SGLyricsLinesFromLRC(@"[00:01]風が吹く\n[00:05]夏を待つ");
+        check(needsChineseTranslations(japanese), @"Japanese with Han characters still needs translation");
+        NSArray *kanjiOnly = SGLyricsLinesFromLRC(@"[00:01]夜空\n[00:05]希望");
+        check(needsChineseTranslations(kanjiOnly), @"Han alone does not prove original language");
+        map = SGLyricsChineseTranslationMap(japanese, @"[00:01]風が吹く\n[00:05]夏を待つ", @"[00:01]风吹过\n[00:05]等待夏天");
+        check(map.count == 2, @"Japanese original aligns with Chinese translation");
+        for (NSNumber *index in map) ((SGKaraokeLine *)japanese[index.unsignedIntegerValue]).translation = map[index];
+        check(!needsChineseTranslations(japanese), @"attached Chinese translations avoid redundant lookup");
+        check(!SGLyricsTitleMatches(@"Sung Birds 摇滚版", @"Sung Birds"), @"rock rendition is not a bilingual alias");
+        check(SGLyricsTitleMatches(@"Sung Birds (feat. Guest)", @"Sung Birds"), @"feature credits omitted by domestic catalogue");
+        check(!SGLyricsTitleMatches(@"Sung Birds (Live) (feat. Guest)", @"Sung Birds"), @"feature normalization retains recording variant");
+        NSDictionary *spokenMap = SGLyricsPronunciationMap(japanese, japanese,
+            SGLyricsLinesFromLRC(@"[00:01]kaze ga fuku\n[00:05]natsu wo matsu"));
+        check(spokenMap.count == 2 && ((SGKaraokeLine *)spokenMap[@0]).timing == SGKaraokeTimingLine, @"LRC pronunciation has estimated timing");
+        check(!SGLyricsPronunciationMap(split, split, split).count, @"English originals are not duplicated as pronunciation");
+        spokenMap = SGLyricsPronunciationMap(japanese, japanese, SGLyricsLinesFromLRC(@"[00:05]natsu wo matsu"));
+        check(!spokenMap[@0] && spokenMap[@1], @"missing pronunciation does not borrow neighbour");
+        NSString *lang = @"{\"content\":[{\"type\":0,\"lyricContent\":[[\"ka\",\"ze\"]]}]}";
+        NSString *tag = [[lang dataUsingEncoding:NSUTF8StringEncoding] base64EncodedStringWithOptions:0];
+        NSArray *krcLines = linesFromKRC([NSString stringWithFormat:@"[language:%@]\n[1000,1000]<0,400,0>か<400,600,0>ぜ", tag]);
+        SGKaraokeLine *krcLine = krcLines.firstObject;
+        check(krcLine.pronunciation.words.count == 2 && krcLine.pronunciation.words[1].start == 1400,
+            @"KRC romanised syllables retain original clocks");
+        krcLines = linesFromKRC([NSString stringWithFormat:@"[language:%@]\n[1000,1000]<0,1000,0>か", tag]);
+        check(!((SGKaraokeLine *)krcLines.firstObject).pronunciation, @"KRC syllable count mismatch rejects pronunciation");
+        krcLines = linesFromKRC(@"[language:bad]\n[1000,1000]<0,1000,0>か");
+        check(krcLines.count == 1 && !((SGKaraokeLine *)krcLines.firstObject).pronunciation, @"malformed romanisation never removes original lyrics");
         puts("Lyrics identity regression checks passed");
     }
     return 0;
@@ -105,7 +148,7 @@ int main(void) {
 '''
 with tempfile.TemporaryDirectory(prefix="lyrics-identity-") as directory:
     path = Path(directory)
-    (path / "identity.m").write_text(source + tests)
+    (path / "identity.m").write_text(source + tests, encoding="utf-8")
     subprocess.run(["xcrun", "clang", "-fobjc-arc", "-fblocks", "-framework", "Foundation",
                     str(path / "identity.m"), "-o", str(path / "identity")], check=True)
     subprocess.run([str(path / "identity")], check=True)

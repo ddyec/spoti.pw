@@ -1,0 +1,1960 @@
+{
+  "captured_at": "2026-09-30T07:47:54.493086+00:00",
+  "seed": 20260930,
+  "method": "Stratified random chart entries; failed feeds retained and retried at top-10 if top-50 unavailable. Actual sample size is tracks length; Apple metadata input; portable metadata replay only. No Spotify lyric reference, no Objective-C execution, no audio identity proof. Kana/Latin transform is excluded from replay. Payload availability does not prove every selected candidate is correct.",
+  "production_source_sha256": "ec04cbc69aad4b05537b2def668665bfeed63f0df1566e328893d8cdd59ef993",
+  "feeds": [
+    {
+      "url": "https://rss.marketingtools.apple.com/api/v2/us/music/most-played/50/songs.json",
+      "error": "The read operation timed out"
+    },
+    {
+      "url": "https://rss.marketingtools.apple.com/api/v2/jp/music/most-played/50/songs.json",
+      "error": "The read operation timed out"
+    },
+    {
+      "url": "https://rss.marketingtools.apple.com/api/v2/cn/music/most-played/50/songs.json",
+      "error": "The read operation timed out"
+    },
+    {
+      "url": "https://rss.marketingtools.apple.com/api/v2/kr/music/most-played/50/songs.json",
+      "updated": "Wed, 30 Sep 2026 07:37:47 +0000"
+    },
+    {
+      "url": "https://rss.marketingtools.apple.com/api/v2/fr/music/most-played/50/songs.json",
+      "error": "The read operation timed out"
+    },
+    {
+      "url": "https://rss.marketingtools.apple.com/api/v2/gb/music/most-played/50/songs.json",
+      "updated": "Wed, 30 Sep 2026 07:38:06 +0000"
+    },
+    {
+      "url": "https://rss.marketingtools.apple.com/api/v2/us/music/most-played/50/songs.json",
+      "updated": "Wed, 30 Sep 2026 07:41:14 +0000",
+      "prior_errors": []
+    },
+    {
+      "url": "https://rss.marketingtools.apple.com/api/v2/jp/music/most-played/50/songs.json",
+      "updated": "Wed, 30 Sep 2026 07:41:14 +0000",
+      "prior_errors": []
+    },
+    {
+      "url": "https://rss.marketingtools.apple.com/api/v2/cn/music/most-played/50/songs.json",
+      "updated": "Wed, 30 Sep 2026 07:41:14 +0000",
+      "prior_errors": []
+    },
+    {
+      "url": "https://rss.marketingtools.apple.com/api/v2/fr/music/most-played/50/songs.json",
+      "updated": "Wed, 30 Sep 2026 07:41:12 +0000",
+      "prior_errors": []
+    }
+  ],
+  "tracks": [
+    {
+      "region": "kr",
+      "rank": 30,
+      "id": "1828393595",
+      "title": "0+0",
+      "artist": "한로로",
+      "url": "https://music.apple.com/kr/album/0-0/1828393588?i=1828393595",
+      "seconds": 192,
+      "providers": {
+        "netease": {
+          "search_count": 39,
+          "fitting_count": 1,
+          "selected": {
+            "id": 2733058708,
+            "title": "0+0",
+            "artist": "한로로",
+            "seconds": 192,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 636,
+              "yrc_chars": 0,
+              "tlyric_chars": 424,
+              "romalrc_chars": 973,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": {
+            "id": 591550228,
+            "title": "0+0",
+            "artist": "한로로",
+            "seconds": 192,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lyric_encoded_chars": 1432,
+              "trans_encoded_chars": 1220,
+              "roma_encoded_chars": 2768
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "kugou": {
+          "search_count": 14,
+          "fitting_count": 14,
+          "selected": {
+            "id": "461891494",
+            "title": "0+0",
+            "artist": "한로로",
+            "seconds": 192,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "krc_chars": 3757,
+              "timed_rows": 22,
+              "has_language_tag": true
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        }
+      }
+    },
+    {
+      "region": "kr",
+      "rank": 26,
+      "id": "6763656876",
+      "title": "hate that i made you love me",
+      "artist": "Ariana Grande",
+      "url": "https://music.apple.com/kr/album/hate-that-i-made-you-love-me/1895420989?i=6763656876",
+      "seconds": 197,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 7,
+          "selected": {
+            "id": 3387362820,
+            "title": "hate that i made you love me",
+            "artist": "Ariana Grande",
+            "seconds": 197,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 3221,
+              "yrc_chars": 0,
+              "tlyric_chars": 1135,
+              "romalrc_chars": 0,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [
+            {
+              "id": 3399377530,
+              "title": "hate that i made you love me",
+              "artist": "砍爷",
+              "seconds": 197,
+              "aliases": [
+                "R&B福音版"
+              ],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            },
+            {
+              "id": 3395395359,
+              "title": "hate that i made you love me",
+              "artist": "aykich",
+              "seconds": 197,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": {
+            "id": 670505076,
+            "title": "hate that i made you love me",
+            "artist": "Ariana Grande",
+            "seconds": 197,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lyric_encoded_chars": 3216,
+              "trans_encoded_chars": 3380,
+              "roma_encoded_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "kugou": {
+          "search_count": 10,
+          "fitting_count": 10,
+          "selected": {
+            "id": "811246295",
+            "title": "hate that i made you love me",
+            "artist": "Ariana Grande",
+            "seconds": 197,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "krc_chars": 9714,
+              "timed_rows": 41,
+              "has_language_tag": true
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        }
+      }
+    },
+    {
+      "region": "kr",
+      "rank": 41,
+      "id": "1889474652",
+      "title": "Runaway",
+      "artist": "리센느",
+      "url": "https://music.apple.com/kr/album/runaway/1889474645?i=1889474652",
+      "seconds": 182,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 0,
+          "selected": null,
+          "requires_original_evidence": [
+            {
+              "id": 3379150269,
+              "title": "Runaway",
+              "artist": "RESCENE",
+              "seconds": 182,
+              "aliases": [
+                "逃离梦境"
+              ],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            },
+            {
+              "id": 3440642197,
+              "title": "RUNAWAY",
+              "artist": "Afterglow Studio",
+              "seconds": 182,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "needs_evidence"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": {
+            "id": 654620157,
+            "title": "Runaway",
+            "artist": "RESCENE (리센느)",
+            "seconds": 182,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lyric_encoded_chars": 3076,
+              "trans_encoded_chars": 2892,
+              "roma_encoded_chars": 5344
+            }
+          },
+          "requires_original_evidence": [
+            {
+              "id": 489435752,
+              "title": "Runaway (凯迪拉克进行曲)",
+              "artist": "走路摇zly",
+              "seconds": 184,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            },
+            {
+              "id": 217454069,
+              "title": "Run Away (国语)",
+              "artist": "黄明昊（Justin）, 朱正廷, Ghost (王琳凯), 毕雯珺, Jeffrey董又霖, 董岩磊",
+              "seconds": 183,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            },
+            {
+              "id": 553143,
+              "title": "Runaway",
+              "artist": "Groove Coverage",
+              "seconds": 187,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "lyric_payload"
+        },
+        "kugou": {
+          "search_count": 0,
+          "fitting_count": 0,
+          "selected": null,
+          "requires_original_evidence": [],
+          "status": "no_metadata_match"
+        }
+      }
+    },
+    {
+      "region": "kr",
+      "rank": 47,
+      "id": "1796402200",
+      "title": "The Chase",
+      "artist": "Hearts2Hearts",
+      "url": "https://music.apple.com/kr/album/the-chase/1796402197?i=1796402200",
+      "seconds": 178,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 0,
+          "selected": null,
+          "requires_original_evidence": [
+            {
+              "id": 2686026885,
+              "title": "The Chase",
+              "artist": "SNOW啊, 顺儿, 酥栗, 啾咪福袋子Yeki",
+              "seconds": 178,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            },
+            {
+              "id": 2686038185,
+              "title": "The Chase 【纯人声】",
+              "artist": "SNOW啊, 顺儿, 酥栗, 啾咪福袋子Yeki",
+              "seconds": 178,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            },
+            {
+              "id": 2748563612,
+              "title": "The Chase（翻自心）",
+              "artist": "bambygu, 乔然",
+              "seconds": 180,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "needs_evidence"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": {
+            "id": 563813741,
+            "title": "The Chase",
+            "artist": "Hearts2Hearts",
+            "seconds": 178,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lyric_encoded_chars": 3656,
+              "trans_encoded_chars": 3472,
+              "roma_encoded_chars": 5024
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "kugou": {
+          "search_count": 10,
+          "fitting_count": 8,
+          "selected": {
+            "id": "326522500",
+            "title": "The Chase",
+            "artist": "Hearts2Hearts",
+            "seconds": 178,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "krc_chars": 9195,
+              "timed_rows": 83,
+              "has_language_tag": true
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        }
+      }
+    },
+    {
+      "region": "gb",
+      "rank": 15,
+      "id": "1884403093",
+      "title": "Boston",
+      "artist": "STELLA LEFTY",
+      "url": "https://music.apple.com/gb/album/boston/1884403092?i=1884403093",
+      "seconds": 170,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 5,
+          "selected": {
+            "id": 3362614644,
+            "title": "Boston",
+            "artist": "STELLA LEFTY",
+            "seconds": 170,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 2824,
+              "yrc_chars": 0,
+              "tlyric_chars": 1035,
+              "romalrc_chars": 0,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 2,
+          "selected": {
+            "id": 650969386,
+            "title": "Boston",
+            "artist": "STELLA LEFTY",
+            "seconds": 170,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lyric_encoded_chars": 2920,
+              "trans_encoded_chars": 2700,
+              "roma_encoded_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "kugou": {
+          "search_count": 10,
+          "fitting_count": 10,
+          "selected": {
+            "id": "772677244",
+            "title": "Boston",
+            "artist": "STELLA LEFTY",
+            "seconds": 170,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "krc_chars": 10447,
+              "timed_rows": 50,
+              "has_language_tag": true
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        }
+      }
+    },
+    {
+      "region": "gb",
+      "rank": 44,
+      "id": "1727526894",
+      "title": "Training Season",
+      "artist": "Dua Lipa",
+      "url": "https://music.apple.com/gb/album/training-season/1727526670?i=1727526894",
+      "seconds": 209,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 5,
+          "selected": {
+            "id": 2126654120,
+            "title": "Training Season",
+            "artist": "Dua Lipa",
+            "seconds": 209,
+            "aliases": [
+              "训练季"
+            ],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 2382,
+              "yrc_chars": 0,
+              "tlyric_chars": 1208,
+              "romalrc_chars": 0,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [
+            {
+              "id": 2602084145,
+              "title": "Training Season",
+              "artist": "于逸朗",
+              "seconds": 209,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": {
+            "id": 470573351,
+            "title": "Training Season",
+            "artist": "Dua Lipa",
+            "seconds": 209,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lyric_encoded_chars": 3388,
+              "trans_encoded_chars": 3880,
+              "roma_encoded_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "kugou": {
+          "search_count": 10,
+          "fitting_count": 1,
+          "selected": {
+            "id": "784347617",
+            "title": "Training Season",
+            "artist": "Dua Lipa",
+            "seconds": 213,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "krc_chars": 6024,
+              "timed_rows": 51,
+              "has_language_tag": false
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        }
+      }
+    },
+    {
+      "region": "gb",
+      "rank": 20,
+      "id": "6768469976",
+      "title": "Dai Dai",
+      "artist": "Shakira & Burna Boy",
+      "url": "https://music.apple.com/gb/album/dai-dai/6768469975?i=6768469976",
+      "seconds": 223,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 10,
+          "selected": {
+            "id": 3381729685,
+            "title": "Dai Dai",
+            "artist": "Shakira, Burna Boy",
+            "seconds": 223,
+            "aliases": [
+              "2026年国际足联世界杯 (\"美加墨\"世界杯) 主题曲"
+            ],
+            "title_pass": true,
+            "artist_matches": 2,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 3689,
+              "yrc_chars": 0,
+              "tlyric_chars": 2220,
+              "romalrc_chars": 0,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 2,
+          "selected": {
+            "id": 686698084,
+            "title": "Dai Dai",
+            "artist": "Shakira, Burna Boy",
+            "seconds": 223,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 2,
+            "duration_pass": true,
+            "payload": {
+              "lyric_encoded_chars": 4436,
+              "trans_encoded_chars": 4808,
+              "roma_encoded_chars": 0
+            }
+          },
+          "requires_original_evidence": [
+            {
+              "id": 688015568,
+              "title": "Dai Dai（世界杯进行曲）",
+              "artist": "苏冰心",
+              "seconds": 226,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "lyric_payload"
+        },
+        "kugou": {
+          "search_count": 0,
+          "fitting_count": 0,
+          "selected": null,
+          "requires_original_evidence": [],
+          "status": "no_metadata_match"
+        }
+      }
+    },
+    {
+      "region": "gb",
+      "rank": 41,
+      "id": "1867034427",
+      "title": "iloveitiloveitiloveit",
+      "artist": "Bella Kay",
+      "url": "https://music.apple.com/gb/album/iloveitiloveitiloveit/1867034426?i=1867034427",
+      "seconds": 183,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 3,
+          "selected": {
+            "id": 3337496871,
+            "title": "iloveitiloveitiloveit",
+            "artist": "Bella Kay",
+            "seconds": 183,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 2791,
+              "yrc_chars": 0,
+              "tlyric_chars": 1250,
+              "romalrc_chars": 0,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [
+            {
+              "id": 3367673468,
+              "title": "iloveitiloveitiloveit",
+              "artist": "Our Last Night",
+              "seconds": 183,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            },
+            {
+              "id": 3394366083,
+              "title": "iloveitiloveitiloveit",
+              "artist": "Charlize Tuozzo",
+              "seconds": 183,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            },
+            {
+              "id": 3392588726,
+              "title": "iloveitiloveitiloveit",
+              "artist": "CHVRT H!TS",
+              "seconds": 184,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 0,
+          "selected": null,
+          "requires_original_evidence": [
+            {
+              "id": 647358919,
+              "title": "iloveitiloveitiloveit",
+              "artist": "Bella Kаy",
+              "seconds": 183,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            },
+            {
+              "id": 716612626,
+              "title": "iloveitiloveitiloveit",
+              "artist": "Sari SM",
+              "seconds": 189,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            },
+            {
+              "id": 706419444,
+              "title": "Iloveitiloveitiloveit",
+              "artist": "All4Us",
+              "seconds": 183,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "needs_evidence"
+        },
+        "kugou": {
+          "search_count": 10,
+          "fitting_count": 10,
+          "selected": {
+            "id": "709933199",
+            "title": "iloveitiloveitiloveit",
+            "artist": "Bella Kay",
+            "seconds": 183,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "krc_chars": 11523,
+              "timed_rows": 48,
+              "has_language_tag": true
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        }
+      }
+    },
+    {
+      "region": "us",
+      "rank": 25,
+      "id": "1802103970",
+      "title": "I'm The Problem",
+      "artist": "Morgan Wallen",
+      "url": "https://music.apple.com/us/album/im-the-problem/1802103958?i=1802103970",
+      "seconds": 177,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 3,
+          "selected": {
+            "id": 2670677149,
+            "title": "I'm The Problem",
+            "artist": "Morgan Wallen",
+            "seconds": 177,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 2502,
+              "yrc_chars": 0,
+              "tlyric_chars": 1176,
+              "romalrc_chars": 0,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": {
+            "id": 558798864,
+            "title": "I'm The Problem",
+            "artist": "Morgan Wallen",
+            "seconds": 177,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lyric_encoded_chars": 3124,
+              "trans_encoded_chars": 2888,
+              "roma_encoded_chars": 0
+            }
+          },
+          "requires_original_evidence": [
+            {
+              "id": 560495311,
+              "title": "I’m The Problem (feat. Chase Morgan)",
+              "artist": "Wallen Walker, Chase Morgan",
+              "seconds": 172,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            },
+            {
+              "id": 726777859,
+              "title": "I'm The Problem?",
+              "artist": "Shadows Awake",
+              "seconds": 176,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            },
+            {
+              "id": 577742398,
+              "title": "I'm The Problem",
+              "artist": "Nina Cobham",
+              "seconds": 182,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "lyric_payload"
+        },
+        "kugou": {
+          "search_count": 10,
+          "fitting_count": 10,
+          "selected": {
+            "id": "382710583",
+            "title": "I'm The Problem",
+            "artist": "Morgan Wallen",
+            "seconds": 177,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "krc_chars": 10170,
+              "timed_rows": 46,
+              "has_language_tag": true
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        }
+      }
+    },
+    {
+      "region": "us",
+      "rank": 18,
+      "id": "1621119447",
+      "title": "WAIT FOR U (feat. Drake & Tems)",
+      "artist": "Future",
+      "url": "https://music.apple.com/us/album/wait-for-u-feat-drake-tems/1621119097?i=1621119447",
+      "seconds": 189,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 5,
+          "selected": {
+            "id": 1942622839,
+            "title": "WAIT FOR U",
+            "artist": "Future, Drake, Tems",
+            "seconds": 189,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 4386,
+              "yrc_chars": 0,
+              "tlyric_chars": 1512,
+              "romalrc_chars": 0,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 0,
+          "selected": null,
+          "requires_original_evidence": [
+            {
+              "id": 728585458,
+              "title": "WAIT FOR U",
+              "artist": "SONTRAP",
+              "seconds": 189,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "needs_evidence"
+        },
+        "kugou": {
+          "search_count": 0,
+          "fitting_count": 0,
+          "selected": null,
+          "requires_original_evidence": [],
+          "status": "no_metadata_match"
+        }
+      },
+      "error": "<urlopen error timed out>"
+    },
+    {
+      "region": "us",
+      "rank": 31,
+      "id": "1621207921",
+      "title": "Frozen",
+      "artist": "Lil Baby",
+      "url": "https://music.apple.com/us/album/frozen/1621207919?i=1621207921",
+      "seconds": 179,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 3,
+          "selected": {
+            "id": 1942649092,
+            "title": "Frozen",
+            "artist": "Lil Baby",
+            "seconds": 179,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 4346,
+              "yrc_chars": 15070,
+              "tlyric_chars": 1919,
+              "romalrc_chars": 0,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [
+            {
+              "id": 2002359752,
+              "title": "Frozen",
+              "artist": "Dept, Ashley Alisha, prettyhappy",
+              "seconds": 177,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 0,
+          "selected": null,
+          "requires_original_evidence": [],
+          "status": "no_metadata_match"
+        },
+        "kugou": {
+          "search_count": 10,
+          "fitting_count": 10,
+          "selected": {
+            "id": "219711366",
+            "title": "Frozen",
+            "artist": "Lil Baby",
+            "seconds": 179,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "krc_chars": 22143,
+              "timed_rows": 68,
+              "has_language_tag": true
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        }
+      }
+    },
+    {
+      "region": "us",
+      "rank": 20,
+      "id": "6810716062",
+      "title": "So Good (feat. Kendrick Lamar)",
+      "artist": "Jhené Aiko",
+      "url": "https://music.apple.com/us/album/so-good-feat-kendrick-lamar/6810715695?i=6810716062",
+      "seconds": 237,
+      "providers": {
+        "netease": {
+          "search_count": 22,
+          "fitting_count": 2,
+          "selected": {
+            "id": 3435030577,
+            "title": "So Good",
+            "artist": "Jhené Aiko, Kendrick Lamar",
+            "seconds": 237,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 4261,
+              "yrc_chars": 0,
+              "tlyric_chars": 2107,
+              "romalrc_chars": 0,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [
+            {
+              "id": 1483964181,
+              "title": "SoGood",
+              "artist": "Ay7",
+              "seconds": 236,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 0,
+          "selected": null,
+          "requires_original_evidence": [],
+          "status": "no_metadata_match"
+        },
+        "kugou": {
+          "search_count": 0,
+          "fitting_count": 0,
+          "selected": null,
+          "requires_original_evidence": [],
+          "status": "no_metadata_match"
+        }
+      }
+    },
+    {
+      "region": "jp",
+      "rank": 8,
+      "id": "6808172970",
+      "title": "共犯",
+      "artist": "Mrs. GREEN APPLE",
+      "url": "https://music.apple.com/jp/album/%E5%85%B1%E7%8A%AF/6808172946?i=6808172970",
+      "seconds": 231,
+      "providers": {
+        "netease": {
+          "search_count": 39,
+          "fitting_count": 1,
+          "selected": null,
+          "requires_original_evidence": [
+            {
+              "id": 3441830524,
+              "title": "共犯",
+              "artist": "俊俊JUNJUN分享家",
+              "seconds": 228,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "needs_evidence"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": {
+            "id": 729554354,
+            "title": "共犯",
+            "artist": "Mrs. GREEN APPLE",
+            "seconds": 231,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lyric_encoded_chars": 3212,
+              "trans_encoded_chars": 4896,
+              "roma_encoded_chars": 10624
+            }
+          },
+          "requires_original_evidence": [
+            {
+              "id": 372793068,
+              "title": "共犯",
+              "artist": "感覚ピエロ",
+              "seconds": 231,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "lyric_payload"
+        },
+        "kugou": {
+          "search_count": 10,
+          "fitting_count": 10,
+          "selected": {
+            "id": "815229918",
+            "title": "共犯",
+            "artist": "Mrs. GREEN APPLE",
+            "seconds": 231,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "krc_chars": 15412,
+              "timed_rows": 57,
+              "has_language_tag": true
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        }
+      }
+    },
+    {
+      "region": "jp",
+      "rank": 7,
+      "id": "6785734870",
+      "title": "マイオンリー",
+      "artist": "SixTONES",
+      "url": "https://music.apple.com/jp/album/%E3%83%9E%E3%82%A4%E3%82%AA%E3%83%B3%E3%83%AA%E3%83%BC/6785734869?i=6785734870",
+      "seconds": 226,
+      "providers": {
+        "netease": {
+          "search_count": 29,
+          "fitting_count": 2,
+          "selected": {
+            "id": 3399767788,
+            "title": "マイオンリー",
+            "artist": "SixTONES",
+            "seconds": 226,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 2179,
+              "yrc_chars": 0,
+              "tlyric_chars": 1921,
+              "romalrc_chars": 3474,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": {
+            "id": 696014291,
+            "title": "マイオンリー",
+            "artist": "SixTONES",
+            "seconds": 226,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lyric_encoded_chars": 4864,
+              "trans_encoded_chars": 6656,
+              "roma_encoded_chars": 13328
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "kugou": {
+          "search_count": 12,
+          "fitting_count": 12,
+          "selected": {
+            "id": "769967027",
+            "title": "マイオンリー",
+            "artist": "SixTONES",
+            "seconds": 226,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "krc_chars": 19579,
+              "timed_rows": 90,
+              "has_language_tag": true
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        }
+      }
+    },
+    {
+      "region": "jp",
+      "rank": 33,
+      "id": "6789046323",
+      "title": "You!Joy!Parade!",
+      "artist": "M!LK",
+      "url": "https://music.apple.com/jp/album/you-joy-parade/6789046108?i=6789046323",
+      "seconds": 181,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 2,
+          "selected": {
+            "id": 3405239084,
+            "title": "You!Joy!Parade!",
+            "artist": "M!LK",
+            "seconds": 181,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 1767,
+              "yrc_chars": 0,
+              "tlyric_chars": 1481,
+              "romalrc_chars": 2481,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": {
+            "id": 706643951,
+            "title": "You!Joy!Parade!",
+            "artist": "M!LK",
+            "seconds": 181,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lyric_encoded_chars": 3196,
+              "trans_encoded_chars": 4292,
+              "roma_encoded_chars": 8768
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "kugou": {
+          "search_count": 9,
+          "fitting_count": 9,
+          "selected": {
+            "id": "724102834",
+            "title": "You!Joy!Parade!",
+            "artist": "M!LK",
+            "seconds": 181,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "krc_chars": 7448,
+              "timed_rows": 51,
+              "has_language_tag": false
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        }
+      }
+    },
+    {
+      "region": "jp",
+      "rank": 49,
+      "id": "1790599512",
+      "title": "ダーリン",
+      "artist": "Mrs. GREEN APPLE",
+      "url": "https://music.apple.com/jp/album/%E3%83%80%E3%83%BC%E3%83%AA%E3%83%B3/1790599503?i=1790599512",
+      "seconds": 280,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 2,
+          "selected": {
+            "id": 2667564835,
+            "title": "ダーリン",
+            "artist": "Mrs. GREEN APPLE",
+            "seconds": 278,
+            "aliases": [
+              "Darling"
+            ],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 1471,
+              "yrc_chars": 0,
+              "tlyric_chars": 927,
+              "romalrc_chars": 1981,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": {
+            "id": 557034888,
+            "title": "ダーリン",
+            "artist": "Mrs. GREEN APPLE",
+            "seconds": 280,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lyric_encoded_chars": 2900,
+              "trans_encoded_chars": 3864,
+              "roma_encoded_chars": 8240
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "kugou": {
+          "search_count": 10,
+          "fitting_count": 10,
+          "selected": {
+            "id": "476918884",
+            "title": "ダーリン",
+            "artist": "Mrs. GREEN APPLE",
+            "seconds": 280,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "krc_chars": 13236,
+              "timed_rows": 50,
+              "has_language_tag": true
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        }
+      }
+    },
+    {
+      "region": "cn",
+      "rank": 18,
+      "id": "1443352465",
+      "title": "爱情转移",
+      "artist": "陈奕迅",
+      "url": "https://music.apple.com/cn/album/%E7%88%B1%E6%83%85%E8%BD%AC%E7%A7%BB/1443352354?i=1443352465",
+      "seconds": 259,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": {
+            "id": 65536,
+            "title": "爱情转移",
+            "artist": "陈奕迅",
+            "seconds": 259,
+            "aliases": [
+              "电影《爱情呼叫转移》主题曲",
+              " 《富士山下》国语版"
+            ],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 2539,
+              "yrc_chars": 0,
+              "tlyric_chars": 0,
+              "romalrc_chars": 0,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": {
+            "id": 553145,
+            "title": "爱情转移",
+            "artist": "陈奕迅",
+            "seconds": 255,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lyric_encoded_chars": 3392,
+              "trans_encoded_chars": 0,
+              "roma_encoded_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "kugou": {
+          "search_count": 11,
+          "fitting_count": 2,
+          "selected": {
+            "id": "677464496",
+            "title": "爱情转移",
+            "artist": "陈奕迅",
+            "seconds": 258,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "krc_chars": 8309,
+              "timed_rows": 63,
+              "has_language_tag": false
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        }
+      }
+    },
+    {
+      "region": "cn",
+      "rank": 1,
+      "id": "255921025",
+      "title": "我不难过",
+      "artist": "孙燕姿",
+      "url": "https://music.apple.com/cn/album/%E6%88%91%E4%B8%8D%E9%9A%BE%E8%BF%87/255920420?i=255921025",
+      "seconds": 320,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 6,
+          "selected": {
+            "id": 287398,
+            "title": "我不难过",
+            "artist": "孙燕姿",
+            "seconds": 320,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 2974,
+              "yrc_chars": 0,
+              "tlyric_chars": 0,
+              "romalrc_chars": 0,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [
+            {
+              "id": 2023557389,
+              "title": "我不难过",
+              "artist": "Itsuki",
+              "seconds": 321,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            },
+            {
+              "id": 28427756,
+              "title": "我不难过",
+              "artist": "品冠",
+              "seconds": 318,
+              "aliases": [
+                "原唱：孙燕姿"
+              ],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": {
+            "id": 8136,
+            "title": "我不难过",
+            "artist": "孙燕姿",
+            "seconds": 320,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lyric_encoded_chars": 2976,
+              "trans_encoded_chars": 0,
+              "roma_encoded_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "kugou": {
+          "search_count": 20,
+          "fitting_count": 9,
+          "selected": {
+            "id": "114964169",
+            "title": "我不难过",
+            "artist": "孙燕姿",
+            "seconds": 320,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "krc_chars": 7316,
+              "timed_rows": 57,
+              "has_language_tag": true
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        }
+      }
+    },
+    {
+      "region": "cn",
+      "rank": 13,
+      "id": "1095630246",
+      "title": "情歌",
+      "artist": "梁静茹",
+      "url": "https://music.apple.com/cn/album/%E6%83%85%E6%AD%8C/1095630068?i=1095630246",
+      "seconds": 260,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 2,
+          "selected": {
+            "id": 254102,
+            "title": "情歌",
+            "artist": "梁静茹",
+            "seconds": 260,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 2039,
+              "yrc_chars": 0,
+              "tlyric_chars": 0,
+              "romalrc_chars": 0,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [
+            {
+              "id": 1434354649,
+              "title": "情歌",
+              "artist": "史一",
+              "seconds": 261,
+              "aliases": [
+                "你写给我 我的第一首歌"
+              ],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": {
+            "id": 462188,
+            "title": "情歌",
+            "artist": "梁静茹",
+            "seconds": 260,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lyric_encoded_chars": 2348,
+              "trans_encoded_chars": 0,
+              "roma_encoded_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "kugou": {
+          "search_count": 11,
+          "fitting_count": 7,
+          "selected": {
+            "id": "17183741",
+            "title": "情歌",
+            "artist": "梁静茹",
+            "seconds": 260,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "krc_chars": 5320,
+              "timed_rows": 50,
+              "has_language_tag": false
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        }
+      }
+    },
+    {
+      "region": "cn",
+      "rank": 47,
+      "id": "1788007696",
+      "title": "可惜没如果",
+      "artist": "林俊杰",
+      "url": "https://music.apple.com/cn/album/%E5%8F%AF%E6%83%9C%E6%B2%A1%E5%A6%82%E6%9E%9C/1788007687?i=1788007696",
+      "seconds": 298,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 2,
+          "selected": {
+            "id": 29814898,
+            "title": "可惜没如果",
+            "artist": "林俊杰",
+            "seconds": 298,
+            "aliases": [
+              "If Only…"
+            ],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 3411,
+              "yrc_chars": 8926,
+              "tlyric_chars": 0,
+              "romalrc_chars": 0,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": {
+            "id": 330621486,
+            "title": "可惜没如果",
+            "artist": "林俊杰",
+            "seconds": 298,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lyric_encoded_chars": 2656,
+              "trans_encoded_chars": 0,
+              "roma_encoded_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "kugou": {
+          "search_count": 11,
+          "fitting_count": 7,
+          "selected": {
+            "id": "72837484",
+            "title": "可惜没如果",
+            "artist": "林俊杰",
+            "seconds": 298,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "krc_chars": 6164,
+              "timed_rows": 59,
+              "has_language_tag": true
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        }
+      }
+    },
+    {
+      "region": "fr",
+      "rank": 43,
+      "id": "1707807608",
+      "title": "Tu connais",
+      "artist": "Werenoi",
+      "url": "https://music.apple.com/fr/album/tu-connais/1707807239?i=1707807608",
+      "seconds": 169,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": null,
+          "requires_original_evidence": [
+            {
+              "id": 2707890272,
+              "title": "Tu Connais",
+              "artist": "ChakibMusic, Beendo Z",
+              "seconds": 167,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "needs_evidence"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 0,
+          "selected": null,
+          "requires_original_evidence": [
+            {
+              "id": 681525114,
+              "title": "TU CONNAIS",
+              "artist": "D-Frek",
+              "seconds": 163,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            },
+            {
+              "id": 651400188,
+              "title": "Tu connais",
+              "artist": "Les KompanionS",
+              "seconds": 171,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "needs_evidence"
+        },
+        "kugou": {
+          "search_count": 0,
+          "fitting_count": 0,
+          "selected": null,
+          "requires_original_evidence": [],
+          "status": "no_metadata_match"
+        }
+      }
+    },
+    {
+      "region": "fr",
+      "rank": 34,
+      "id": "1879523794",
+      "title": "Pocahontas",
+      "artist": "PLK",
+      "url": "https://music.apple.com/fr/album/pocahontas/1879523679?i=1879523794",
+      "seconds": 168,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": {
+            "id": 3358423302,
+            "title": "Pocahontas",
+            "artist": "PLK",
+            "seconds": 168,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 3600,
+              "yrc_chars": 0,
+              "tlyric_chars": 1345,
+              "romalrc_chars": 0,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 0,
+          "selected": null,
+          "requires_original_evidence": [],
+          "status": "no_metadata_match"
+        },
+        "kugou": {
+          "search_count": 0,
+          "fitting_count": 0,
+          "selected": null,
+          "requires_original_evidence": [],
+          "status": "no_metadata_match"
+        }
+      }
+    },
+    {
+      "region": "fr",
+      "rank": 49,
+      "id": "1876522627",
+      "title": "Argent Sale - A COLORS SHOW",
+      "artist": "La Rvfleuze",
+      "url": "https://music.apple.com/fr/album/argent-sale-a-colors-show/1876522624?i=1876522627",
+      "seconds": 164,
+      "providers": {
+        "netease": {
+          "search_count": 1,
+          "fitting_count": 1,
+          "selected": {
+            "id": 3350389767,
+            "title": "Argent Sale - A COLORS SHOW",
+            "artist": "La Rvfleuze, COLORS",
+            "seconds": 164,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 1,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 3960,
+              "yrc_chars": 0,
+              "tlyric_chars": 0,
+              "romalrc_chars": 0,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 0,
+          "selected": null,
+          "requires_original_evidence": [],
+          "status": "no_metadata_match"
+        },
+        "kugou": {
+          "search_count": 0,
+          "fitting_count": 0,
+          "selected": null,
+          "requires_original_evidence": [],
+          "status": "no_metadata_match"
+        }
+      }
+    },
+    {
+      "region": "fr",
+      "rank": 24,
+      "id": "1840188177",
+      "title": "melodrama",
+      "artist": "disiz & Theodora",
+      "url": "https://music.apple.com/fr/album/melodrama/1840188173?i=1840188177",
+      "seconds": 176,
+      "providers": {
+        "netease": {
+          "search_count": 40,
+          "fitting_count": 2,
+          "selected": {
+            "id": 2750018154,
+            "title": "melodrama",
+            "artist": "Disiz, Theodora",
+            "seconds": 176,
+            "aliases": [],
+            "title_pass": true,
+            "artist_matches": 2,
+            "duration_pass": true,
+            "payload": {
+              "lrc_chars": 2235,
+              "yrc_chars": 0,
+              "tlyric_chars": 1107,
+              "romalrc_chars": 0,
+              "yromalrc_chars": 0
+            }
+          },
+          "requires_original_evidence": [],
+          "status": "lyric_payload"
+        },
+        "qqmusic": {
+          "search_count": 40,
+          "fitting_count": 1,
+          "selected": null,
+          "requires_original_evidence": [
+            {
+              "id": 576368740,
+              "title": "Melodrama",
+              "artist": "Beks",
+              "seconds": 179,
+              "aliases": [],
+              "title_pass": true,
+              "artist_matches": 0,
+              "duration_pass": true
+            }
+          ],
+          "status": "needs_evidence"
+        },
+        "kugou": {
+          "search_count": 0,
+          "fitting_count": 0,
+          "selected": null,
+          "requires_original_evidence": [],
+          "status": "no_metadata_match"
+        }
+      }
+    }
+  ],
+  "metadata_rechecked_at": "2026-09-30T08:01:31.165485+00:00"
+}

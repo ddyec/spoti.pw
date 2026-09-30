@@ -12,7 +12,8 @@ static BOOL matches(NSDictionary *candidate, SGLyricsQuery *query) {
     if (!([candidate[@"id"] isKindOfClass:NSString.class] || [candidate[@"id"] isKindOfClass:NSNumber.class]) ||
         ![candidate[@"accesskey"] isKindOfClass:NSString.class] ||
         !(SGLyricsTitleMatches(candidate[@"song"], query.title) || SGLyricsTranslatedTitleCandidate(candidate[@"song"], query))) return NO;
-    if (!SGLyricsArtistMatchCount(candidate[@"singer"], query.artist)) return NO;
+    if (!SGLyricsArtistMatchCount(candidate[@"singer"], query.artist) &&
+        !(duration > 0 && query.seconds > 0 && SGLyricsTitleEvidenceCandidate(candidate[@"song"], query))) return NO;
     return query.seconds <= 0 || duration <= 0 || labs(duration / 1000 - query.seconds) <= 8;
 }
 
@@ -30,6 +31,23 @@ static NSString *decodeKRC(NSString *encoded) {
     return [[NSString alloc] initWithBytes:inflated.bytes length:(NSUInteger)length encoding:NSUTF8StringEncoding];
 }
 
+// KRC embeds an optional base64 JSON language block. Type 0 carries romanised
+// syllables. An inconsistent row/word count is rejected rather than shifted.
+static NSArray *krcPronunciationRows(NSString *krc) {
+    for (NSString *row in [krc componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
+        if (![row hasPrefix:@"[language:"] || ![row hasSuffix:@"]"] || row.length > 2 * 1024 * 1024) continue;
+        NSString *encoded = [row substringWithRange:NSMakeRange(10, row.length - 11)];
+        NSData *data = [[NSData alloc] initWithBase64EncodedString:encoded options:0];
+        id root = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+        NSArray *content = [root isKindOfClass:NSDictionary.class] && [root[@"content"] isKindOfClass:NSArray.class] ? root[@"content"] : @[];
+        for (id language in content) {
+            if (![language isKindOfClass:NSDictionary.class] || ![language[@"type"] isKindOfClass:NSNumber.class] || [language[@"type"] integerValue] != 0) continue;
+            if ([language[@"lyricContent"] isKindOfClass:NSArray.class]) return language[@"lyricContent"];
+        }
+    }
+    return nil;
+}
+
 static NSArray<SGKaraokeLine *> *linesFromKRC(NSString *krc) {
     static NSRegularExpression *header, *part;
     static dispatch_once_t once;
@@ -38,7 +56,20 @@ static NSArray<SGKaraokeLine *> *linesFromKRC(NSString *krc) {
         part = [NSRegularExpression regularExpressionWithPattern:@"<(\\d+),(\\d+),-?\\d+>" options:0 error:nil];
     });
     NSMutableArray<SGKaraokeLine *> *lines = [NSMutableArray array];
-    BOOL singing = NO;
+    NSArray *romanRows = krcPronunciationRows(krc);
+    NSUInteger rawRow = 0, rowCount = 0;
+    for (NSString *row in [krc componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
+        NSTextCheckingResult *head = [header firstMatchInString:row options:0 range:NSMakeRange(0, row.length)];
+        if (!head) continue;
+        NSArray *pieces = [part matchesInString:row options:0 range:NSMakeRange(NSMaxRange(head.range), row.length - NSMaxRange(head.range))];
+        NSString *body = [row substringFromIndex:NSMaxRange(head.range)];
+        NSString *text = [part stringByReplacingMatchesInString:body options:0 range:NSMakeRange(0, body.length) withTemplate:@""];
+        if (pieces.count && [text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].length) rowCount++;
+    }
+    if (romanRows.count != rowCount) {
+        if (romanRows.count) SGLyricsLog(@"kugou: pronunciation row count mismatch (%lu/%lu), not attached", (unsigned long)romanRows.count, (unsigned long)rowCount);
+        romanRows = nil;
+    }
     for (NSString *row in [krc componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
         NSTextCheckingResult *head = [header firstMatchInString:row options:0 range:NSMakeRange(0, row.length)];
         if (!head) continue;
@@ -81,9 +112,32 @@ static NSArray<SGKaraokeLine *> *linesFromKRC(NSString *krc) {
         line.end = MAX(lineEnd, words.lastObject.end);
         line.timing = SGKaraokeTimingWords;
         NSString *text = SGKaraokeLineText(line);
-        if (!singing && line.start < 30000 && SGLyricsTimedCredit(text)) continue;
-        if (!singing && line.start < 2500 && [text containsString:@" - "]) continue;
-        singing = YES;
+        NSString *rawLine = row;
+        id roman = rawRow < romanRows.count ? romanRows[rawRow] : nil;
+        rawRow++;
+        if ([roman isKindOfClass:NSArray.class] && [roman count] == parts.count) {
+            NSMutableArray<SGKaraokeWord *> *spokenWords = [NSMutableArray array];
+            BOOL valid = YES;
+            for (NSUInteger i = 0; i < parts.count; i++) {
+                if (![roman[i] isKindOfClass:NSString.class]) { valid = NO; break; }
+                NSString *spokenText = [roman[i] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+                if (!spokenText.length) { valid = NO; break; }
+                SGKaraokeWord *word = [SGKaraokeWord new];
+                word.text = spokenText;
+                word.start = lineStart + [rawLine substringWithRange:[parts[i] rangeAtIndex:1]].integerValue;
+                word.end = MAX(word.start + 1, word.start + [rawLine substringWithRange:[parts[i] rangeAtIndex:2]].integerValue);
+                word.joined = NO;
+                [spokenWords addObject:word];
+            }
+            if (valid && spokenWords.count) {
+                SGKaraokeLine *spoken = [SGKaraokeLine new];
+                spoken.start = line.start; spoken.end = line.end; spoken.timing = SGKaraokeTimingWords;
+                spoken.words = spokenWords;
+                NSDictionary *mapped = SGLyricsPronunciationMap(@[line], @[line], @[spoken]);
+                line.pronunciation = mapped[@0];
+            }
+        }
+        if (SGLyricsTimedCredit(text)) continue;
         [lines addObject:line];
     }
     return lines.count ? lines : nil;
@@ -91,7 +145,7 @@ static NSArray<SGKaraokeLine *> *linesFromKRC(NSString *krc) {
 
 static void deliverCandidate(NSDictionary *song, SGLyricsQuery *query, SGLyricsResult *result, void (^done)(SGLyricsResult *)) {
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
-        BOOL verified = SGLyricsTitleMatches(song[@"song"], query.title) || SGLyricsRecordingMatches(query.referenceLines, result.karaokeLines);
+        BOOL verified = (SGLyricsTitleMatches(song[@"song"], query.title) && SGLyricsArtistMatchCount(song[@"singer"], query.artist)) || SGLyricsRecordingMatches(query.referenceLines, result.karaokeLines);
         dispatch_async(dispatch_get_main_queue(), ^{
             SGLyricsLog(@"kugou: candidate %@ original-text evidence %@", song[@"id"], verified ? @"accepted" : @"rejected");
             done(verified ? result : nil);
@@ -107,9 +161,11 @@ static void tryCandidates(NSArray<NSDictionary *> *songs, NSUInteger index, SGLy
         @"ver": @"1", @"client": @"pc", @"id": songID, @"accesskey": song[@"accesskey"],
         @"fmt": @"krc", @"charset": @"utf8"});
     SGLyricsGetJSON(url, @{@"User-Agent": @"Mozilla/5.0"}, ^(id root) {
+      dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
         NSDictionary *reply = [root isKindOfClass:NSDictionary.class] ? root : nil;
         NSString *krc = [reply[@"status"] integerValue] == 200 ? decodeKRC(reply[@"content"]) : nil;
         NSArray<SGKaraokeLine *> *lines = krc ? linesFromKRC(krc) : nil;
+        dispatch_async(dispatch_get_main_queue(), ^{
         if (!lines.count) {
             SGLyricsLog(@"kugou: KRC %@ status %ld, decoded %@; trying LRC", songID,
                   (long)[reply[@"status"] integerValue], krc ? @"yes" : @"no");
@@ -152,6 +208,8 @@ static void tryCandidates(NSArray<NSDictionary *> *songs, NSUInteger index, SGLy
         deliverCandidate(song, query, result, ^(SGLyricsResult *verified) {
             if (verified) done(verified); else tryCandidates(songs, index + 1, query, done);
         });
+        });
+      });
     });
 }
 
