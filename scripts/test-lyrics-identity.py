@@ -25,16 +25,24 @@ krc = section(base / "LyricsSources/KuGou.m", "static NSArray *krcPronunciationR
 qqMetadata = section(base / "LyricsSources/QQMusic.m", "static NSString *singers(", "static void lyricReply(")
 qqEligibility = section(base / "LyricsSources/QQMusic.m", "static BOOL matches(", "static NSString *decoded(")
 eligibility = section(base / "LyricsSources/LyricsSources.m", "static BOOL needsChineseTranslations(", "// Calculate off main;")
-source = ("#import <Foundation/Foundation.h>\n#import <dispatch/dispatch.h>\n#include <stdio.h>\n#include <stdlib.h>\n"
+preview = section(root / "tweak/Sources/Native/Player/LyricsPreview.x", "static CGRect previewFrame(", "static BOOL showing(")
+source = ("#import <Foundation/Foundation.h>\n#import <CoreGraphics/CoreGraphics.h>\n#import <dispatch/dispatch.h>\n#include <stdio.h>\n#include <stdlib.h>\n"
           + model + query + "BOOL SGLyricsTimedCredit(NSString *);\n"
           + "BOOL SGLyricsDiagnosticsEnabled(void) { return NO; }\nvoid SGLyricsLog(NSString *format, ...) {}\n"
-          + timing + lrc + matching + aliases + qrc + eligibility + qqMetadata + qqEligibility + krc)
+          + timing + lrc + matching + aliases + qrc + eligibility + qqMetadata + qqEligibility + krc + preview)
 tests = r'''
 static void check(BOOL ok, NSString *label) {
     if (!ok) { NSLog(@"FAIL: %@", label); exit(1); }
 }
 int main(void) {
     @autoreleasepool {
+        CGRect player = CGRectMake(0, 0, 402, 874);
+        CGRect cover = CGRectMake(24, 118, 354, 354), info = CGRectMake(0, 576, 402, 64);
+        CGRect previewRect = previewFrame(cover, info, player);
+        check(!CGRectIsNull(previewRect) && CGRectGetMinY(previewRect) > CGRectGetMaxY(cover) &&
+            CGRectGetMaxY(previewRect) < CGRectGetMinY(info), @"preview fits cover/title gap independently of native container");
+        check(CGRectIsNull(previewFrame(cover, CGRectMake(0, 490, 402, 64), player)), @"preview never overlaps title in cramped layout");
+        check(CGRectIsNull(previewFrame(CGRectZero, info, player)), @"missing cover cannot place preview over controls");
         NSString *longTitle = @"Moon Halo - Honkai Impact 3Rd \"Everlasting Flames\" Animated Short Theme";
         for (NSString *title in @[
             longTitle,
@@ -149,6 +157,6 @@ int main(void) {
 with tempfile.TemporaryDirectory(prefix="lyrics-identity-") as directory:
     path = Path(directory)
     (path / "identity.m").write_text(source + tests, encoding="utf-8")
-    subprocess.run(["xcrun", "clang", "-fobjc-arc", "-fblocks", "-framework", "Foundation",
+    subprocess.run(["xcrun", "clang", "-fobjc-arc", "-fblocks", "-framework", "Foundation", "-framework", "CoreGraphics",
                     str(path / "identity.m"), "-o", str(path / "identity")], check=True)
     subprocess.run([str(path / "identity")], check=True)

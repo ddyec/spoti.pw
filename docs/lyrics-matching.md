@@ -53,11 +53,15 @@ The existing redesigned lyrics corner menu exposes Pronunciation when data is pr
 No synthesized Japanese kanji reading or machine translation is introduced.
 # Native player preview
 
-The native player now renders the shared cache's current timed line inside its existing
-`LyricsContainerView`, rather than depending on Spotify's separate preview model. This is
+The native player now renders the shared cache's current timed line in its own overlay on
+the player, measured between the visible cover and the information row. It does not depend
+on Spotify creating or sizing `LyricsContainerView` or populating its preview model. This is
 enabled with any custom lyrics source unless **Hide on the player → Lyrics preview** is on.
 It uses the same playback clock and lead-line selection as the other lyric surfaces, clears
 on track changes and instrumental breaks, and polls only while attached to a window. No
 network or parsing work runs in its update. Unsynced/no-source tracks retain Spotify's preview.
 The redesigned player continues to use its existing full lyrics overlay. Device acceptance
 is required for the preview's bounds and visibility on the installed Spotify version.
+With lyrics diagnostics enabled, `preview` events record the track, display state, cache
+count, position and measured rectangles, without recording lyric text. These distinguish a
+disabled hide setting, missing timed lyrics, invalid geometry and a displayed line.
