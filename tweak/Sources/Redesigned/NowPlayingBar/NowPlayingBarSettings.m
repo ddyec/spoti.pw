@@ -12,6 +12,7 @@ UIViewController *SGRNowPlayingBarSettingsPage(void) {
         ]),
         SGSection(nil, @[
             SGSwitchRow(@"Moving background", nil, SGRKeyPlayerMotion),
+            SGSwitchRow(@"Lyrics preview", @"Show the current line below the cover", SGRKeyPlayerLyricsPreview),
         ]),
     ] footer:nil];
 }

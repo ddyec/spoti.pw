@@ -60,7 +60,9 @@ enabled with any custom lyrics source unless **Hide on the player → Lyrics pre
 It uses the same playback clock and lead-line selection as the other lyric surfaces, clears
 on track changes and instrumental breaks, and polls only while attached to a window. No
 network or parsing work runs in its update. Unsynced/no-source tracks retain Spotify's preview.
-The redesigned player continues to use its existing full lyrics overlay. Device acceptance
+The redesigned player has its own independent preview, enabled by default at **Player →
+Now playing → Lyrics preview**. It hides while the full lyrics overlay is open or the player
+transition is running. The native hide switch does not control the redesign. Device acceptance
 is required for the preview's bounds and visibility on the installed Spotify version.
 With lyrics diagnostics enabled, `preview` events record the track, display state, cache
 count, position and measured rectangles, without recording lyric text. These distinguish a

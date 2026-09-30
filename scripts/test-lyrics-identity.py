@@ -26,10 +26,11 @@ qqMetadata = section(base / "LyricsSources/QQMusic.m", "static NSString *singers
 qqEligibility = section(base / "LyricsSources/QQMusic.m", "static BOOL matches(", "static NSString *decoded(")
 eligibility = section(base / "LyricsSources/LyricsSources.m", "static BOOL needsChineseTranslations(", "// Calculate off main;")
 preview = section(root / "tweak/Sources/Native/Player/LyricsPreview.x", "static CGRect previewFrame(", "static BOOL showing(")
+redesignPreview = section(root / "tweak/Sources/Redesigned/Player/PlayerPreview.x", "static CGRect sgrPreviewFrame(", "static BOOL sgrShowing(")
 source = ("#import <Foundation/Foundation.h>\n#import <CoreGraphics/CoreGraphics.h>\n#import <dispatch/dispatch.h>\n#include <stdio.h>\n#include <stdlib.h>\n"
           + model + query + "BOOL SGLyricsTimedCredit(NSString *);\n"
           + "BOOL SGLyricsDiagnosticsEnabled(void) { return NO; }\nvoid SGLyricsLog(NSString *format, ...) {}\n"
-          + timing + lrc + matching + aliases + qrc + eligibility + qqMetadata + qqEligibility + krc + preview)
+          + timing + lrc + matching + aliases + qrc + eligibility + qqMetadata + qqEligibility + krc + preview + redesignPreview)
 tests = r'''
 static void check(BOOL ok, NSString *label) {
     if (!ok) { NSLog(@"FAIL: %@", label); exit(1); }
@@ -43,6 +44,8 @@ int main(void) {
             CGRectGetMaxY(previewRect) < CGRectGetMinY(info), @"preview fits cover/title gap independently of native container");
         check(CGRectIsNull(previewFrame(cover, CGRectMake(0, 490, 402, 64), player)), @"preview never overlaps title in cramped layout");
         check(CGRectIsNull(previewFrame(CGRectZero, info, player)), @"missing cover cannot place preview over controls");
+        check(CGRectEqualToRect(sgrPreviewFrame(cover, info, player), previewRect), @"redesigned preview occupies the same cover/title gap");
+        check(CGRectIsNull(sgrPreviewFrame(cover, CGRectMake(0, 490, 402, 64), player)), @"redesigned preview cannot overlap controls");
         NSString *longTitle = @"Moon Halo - Honkai Impact 3Rd \"Everlasting Flames\" Animated Short Theme";
         for (NSString *title in @[
             longTitle,
