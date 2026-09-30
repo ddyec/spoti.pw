@@ -115,7 +115,7 @@ static NSURLRequest *donorRequestFor(NSURLRequest *request) {
     NSMutableURLRequest *donor = [request mutableCopy];
     donor.URL = url;
     [NSURLProtocol setProperty:track forKey:kDonorForKey inRequest:donor];
-    SGLog(@"lyrics: Spotify has none for %@, its request goes to the donor", track);
+    SGLyricsLog(@"lyrics: Spotify has none for %@, its request goes to the donor", track);
     SGLyricsPrefetch(track);
     return donor;
 }
@@ -161,6 +161,7 @@ static NSString *timingName(NSArray<SGKaraokeLine *> *lines) {
 // is the page's when the sources' lines replace Spotify's, nil when they do not.
 static NSData *decide(NSString *track, SGLyricsResult *chain, NSData *spotifyBody, BOOL donor, NSData *colours) {
     NSArray<SGKaraokeLine *> *spotifyLines = spotifyBody ? SGKaraokeLinesFromBody(spotifyBody) : nil;
+    if (!donor) SGLyricsNoteReference(track, spotifyLines);
     if (!spotifyLines.count) spotifyLines = nil;
     SGKaraokeTiming spotifyTiming = SGKaraokeLinesTiming(spotifyLines);
     BOOL replace = chain.texts.count && (chain.synced || spotifyTiming == SGKaraokeTimingNone);
@@ -185,7 +186,7 @@ static NSData *decide(NSString *track, SGLyricsResult *chain, NSData *spotifyBod
     NSString *provider = chain.provider.length ? chain.provider : kUnnamedProvider;
     NSString *pageGets = page ? [NSString stringWithFormat:@"%@'s lines", provider] : spotifyBody ? @"Spotify's own" : @"none";
     NSString *viewGets = viewLines ? [NSString stringWithFormat:@"%@'s lines, %@", viewLines == spotifyLines ? @"Spotify" : provider, timingName(viewLines)] : @"nothing";
-    SGLog(@"lyrics: page of %@ gets %@; the lyrics view gets %@", track, pageGets, viewGets);
+    SGLyricsLog(@"lyrics: page of %@ gets %@; the lyrics view gets %@", track, pageGets, viewGets);
     return page;
 }
 
@@ -226,7 +227,7 @@ static NSData *amendedCardList(NSData *body, NSString *track) {
     SGPBField *structure = SGPBFirst(top, 1);
     NSArray<SGPBField *> *sections = structure.wire == 2 ? SGPBParse(structure.payload) : nil;
     if (!sections) {
-        SGLog(@"scrollsita: the card list of %@ could not be read, %lu bytes", track, (unsigned long)body.length);
+        SGLyricsLog(@"scrollsita: the card list of %@ could not be read, %lu bytes", track, (unsigned long)body.length);
         return body;
     }
     for (SGPBField *section in sections) {
@@ -238,7 +239,7 @@ static NSData *amendedCardList(NSData *body, NSString *track) {
     NSMutableData *amended = [SGPBSerialize(@[SGPBBytes(1, lyricsSection(track))]) mutableCopy];
     [amended appendData:structure.payload];
     structure.payload = amended;
-    SGLog(@"scrollsita: lyrics section added for %@", track);
+    SGLyricsLog(@"scrollsita: lyrics section added for %@", track);
     return SGPBSerialize(top);
 }
 
@@ -268,7 +269,7 @@ static void answerAs(NSURLSessionTask *task, NSHTTPURLResponse *response) {
             method_setImplementation(method, imp_implementationWithBlock(^NSURLResponse *(id me) {
                 return objc_getAssociatedObject(me, &kAnswerKey) ?: original(me, selector);
             }));
-            SGLog(@"lyrics: -response answered on %s", class_getName(cls));
+            SGLyricsLog(@"lyrics: -response answered on %s", class_getName(cls));
             return;
         }
     });
@@ -321,7 +322,7 @@ static SGLyricsTaskState *classify(NSURLSessionTask *task, NSURLResponse *respon
     if (!track) track = lyricsTrack(original.URL) ?: lyricsTrack(current.URL);
     if (!track) return nil;
     state.track = track;
-    SGLog(@"lyrics: Spotify answered %ld for %@%@", (long)state.status, track, state.donor ? @" through the donor" : @"");
+    SGLyricsLog(@"lyrics: Spotify answered %ld for %@%@", (long)state.status, track, state.donor ? @" through the donor" : @"");
     if (state.status == 200 && !state.donor) {
         state.kind = SGLyricsTaskSpotify;
         state.body = [NSMutableData data];
@@ -347,7 +348,7 @@ static void answerDonor(NSURLSessionDataTask *task, SGLyricsTaskState *state, SG
         return;
     }
     decide(state.track, chain, nil, YES, nil);
-    SGLog(@"lyrics: no source has lyrics for %@, it ends in a 404", state.track);
+    SGLyricsLog(@"lyrics: no source has lyrics for %@, it ends in a 404", state.track);
     NSHTTPURLResponse *notFound = [[NSHTTPURLResponse alloc] initWithURL:urlOf(task) statusCode:404 HTTPVersion:@"HTTP/2.0" headerFields:nil];
     answerAs(task, notFound);
     forward(notFound, handler);
@@ -359,7 +360,7 @@ static void answerMissing(id delegate, NSURLSession *session, NSURLSessionDataTa
                           SGLyricsResult *chain, NSURLResponse *response, SGDisposition handler, SGForwardResponse forward) {
     NSData *page = decide(state.track, chain, nil, state.donor, nil);
     if (!page) {
-        SGLog(@"lyrics: no source has lyrics for %@ either, it ends in Spotify's own %ld", state.track, (long)state.status);
+        SGLyricsLog(@"lyrics: no source has lyrics for %@ either, it ends in Spotify's own %ld", state.track, (long)state.status);
         @synchronized (state) { state.dropping = NO; }
         forward(response, handler);
         return;
@@ -405,7 +406,7 @@ static void answerHeld(id delegate, NSURLSession *session, NSURLSessionDataTask 
         }
     }
     if (ended || cancelled) {
-        SGLog(@"lyrics: the request for %@ ended before the sources answered, nothing delivered", state.track);
+        SGLyricsLog(@"lyrics: the request for %@ ended before the sources answered, nothing delivered", state.track);
         // URLSession holds the end of a cancelled task back until it has a disposition.
         if (cancelled) handler(NSURLSessionResponseCancel);
         return;
@@ -489,7 +490,7 @@ static void finishDonor(id delegate, NSURLSession *session, NSURLSessionDataTask
     // The donor's colours are the track's own only when they were worked out from its artwork.
     NSData *page = decide(state.track, chain, nil, YES, state.artwork ? coloursIn(body) : nil);
     if (!page) {
-        SGLog(@"lyrics: no source has lyrics for %@ any more, its request fails", state.track);
+        SGLyricsLog(@"lyrics: no source has lyrics for %@ any more, its request fails", state.track);
         NSString *reason = [NSString stringWithFormat:@"No lyrics source has lyrics for %@", state.track];
         forward([NSError errorWithDomain:NSURLErrorDomain code:NSURLErrorResourceUnavailable userInfo:@{NSLocalizedDescriptionKey: reason}]);
         return;
@@ -584,7 +585,7 @@ static void completed(id delegate, NSURLSession *session, NSURLSessionTask *task
     SGKaraokeRememberTrack(self);
     if (has || !SGLyricsMayHave(track)) return metadata;
     static dispatch_once_t once;
-    dispatch_once(&once, ^{ SGLog(@"lyrics: has_lyrics forced on, first for spotify:track:%@", track); });
+    dispatch_once(&once, ^{ SGLyricsLog(@"lyrics: has_lyrics forced on, first for spotify:track:%@", track); });
     NSMutableDictionary *forced = metadata ? [metadata mutableCopy] : [NSMutableDictionary dictionary];
     forced[@"has_lyrics"] = @"true";
     return forced;
@@ -624,6 +625,6 @@ static void completed(id delegate, NSURLSession *session, NSURLSessionTask *task
         %init(SGLyricsEveryTrack);
         if (hookLocal) %init(SGLyricsLocalSession);
     }
-    SGLog(@"lyrics: sources %@, every track %@", [SGLyricsOrder() componentsJoinedByString:@", "], everyTrack ? @"on" : @"off");
+    SGLyricsLog(@"lyrics: sources %@, every track %@", [SGLyricsOrder() componentsJoinedByString:@", "], everyTrack ? @"on" : @"off");
     SGRequireClasses(@[@"SPTPlayerTrack", @"SPTDataLoaderService", @"_TtC26Connectivity_HttpClientKit20HttpClientURLSession"]);
 }

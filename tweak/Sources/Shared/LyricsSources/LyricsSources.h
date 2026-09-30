@@ -7,6 +7,7 @@
 // Unison serve. It is the only shape carrying a second voice and the (oh, aye) sung under a line; every other source times lines, or the words inside them, and nothing more.
 #import <UIKit/UIKit.h>
 #import "Shared/Lyrics/Lyrics.h"
+#import "LyricsDiagnostics.h"
 
 // The sources in the order they are asked, as their keys. Unset means the order below, so a source
 // added in a later version joins the end of everyone's list instead of shuffling it.
@@ -40,6 +41,7 @@
 // What is known about the track when a source is asked. Only trackID is always there; the rest is
 // filled in by the player, and by whichever source answered before.
 @interface SGLyricsQuery : NSObject
+@property (nonatomic, copy) NSArray<SGKaraokeLine *> *referenceLines; // Spotify originals, for translated-title validation
 @property (nonatomic, copy) NSString *trackID;   // Spotify's base62 id
 @property (nonatomic, copy) NSString *title, *artist, *album;
 @property (nonatomic) NSInteger seconds;
@@ -130,6 +132,14 @@ extern NSNotificationName const SGLyricsTranslationUpdatedNotification;
 void SGLyricsFetchChineseTranslations(NSString *trackID, NSArray<SGKaraokeLine *> *lines);
 // A bilingual local title may contain Spotify's title after a translated prefix.
 BOOL SGLyricsTitleMatches(NSString *candidate, NSString *wanted);
+NSString *SGLyricsSearchTitle(NSString *title);
+NSArray<NSString *> *SGLyricsSearchArtists(NSString *artists);
+BOOL SGLyricsTranslatedTitleCandidate(NSString *candidate, SGLyricsQuery *query);
+BOOL SGLyricsRecordingMatches(NSArray<SGKaraokeLine *> *target, NSArray<SGKaraokeLine *> *candidate);
+void SGLyricsNoteReference(NSString *trackID, NSArray<SGKaraokeLine *> *lines);
+void SGLyricsDiagnosticCandidate(NSString *provider, SGLyricsQuery *query, NSString *title,
+                                NSString *artists, NSInteger seconds, NSInteger slack, BOOL requireTitle);
+UIViewController *SGLyricsDiagnosticsPage(void);
 BOOL SGLyricsContainsHan(NSString *text);
 NSString *SGLyricsLeadArtist(NSString *artists);
 NSUInteger SGLyricsArtistMatchCount(NSString *candidate, NSString *wanted);

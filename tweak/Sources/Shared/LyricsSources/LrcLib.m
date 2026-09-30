@@ -65,12 +65,9 @@ NSArray<SGKaraokeLine *> *SGLyricsLinesFromLRC(NSString *lrc) {
     // The empty rows stay in: they are the breaks, and each one is the end of the line before it.
     NSMutableArray<NSNumber *> *starts = [NSMutableArray array];
     NSMutableArray<NSString *> *texts = [NSMutableArray array];
-    BOOL singing = NO;
     for (NSDictionary *row in stamped) {
         NSString *text = row[@"text"];
-        if (!singing && [row[@"ms"] integerValue] < 30000 && SGLyricsTimedCredit(text)) continue;
-        if (!singing && [row[@"ms"] integerValue] < 2500 && [text containsString:@" - "]) continue;
-        if (text.length) singing = YES;
+        if (SGLyricsTimedCredit(text)) continue;
         [starts addObject:row[@"ms"]];
         [texts addObject:text];
     }
@@ -139,7 +136,7 @@ static NSDictionary *bestOf(id found, NSInteger seconds) {
 
 SGLyricsAsk SGLrcLibAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *result)) {
     if (!query.title.length || !query.artist.length) {
-        SGLog(@"lrclib: nothing to search with for %@", query.trackID);
+        SGLyricsLog(@"lrclib: nothing to search with for %@", query.trackID);
         done(nil);
         return;
     }
@@ -153,7 +150,7 @@ SGLyricsAsk SGLrcLibAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *r
         SGLyricsGetJSON(SGLyricsURL(kSearch, search), headers(), ^(id found) {
             NSDictionary *record = bestOf(found, query.seconds);
             SGLyricsResult *result = resultFrom(record);
-            SGLog(@"lrclib: search for %@ by %@ gave %@", query.title, query.artist,
+            SGLyricsLog(@"lrclib: search for %@ by %@ gave %@", query.title, query.artist,
                   !result ? @"nothing" : result.instrumental ? @"an instrumental"
                   : result.synced ? [NSString stringWithFormat:@"%lu timed lines", (unsigned long)result.karaokeLines.count]
                   : [NSString stringWithFormat:@"%lu untimed lines", (unsigned long)result.texts.count]);
@@ -174,7 +171,7 @@ SGLyricsAsk SGLrcLibAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *r
             bySearch();
             return;
         }
-        SGLog(@"lrclib: %@ by %@ matched exactly, %@", query.title, query.artist,
+        SGLyricsLog(@"lrclib: %@ by %@ matched exactly, %@", query.title, query.artist,
               result.instrumental ? @"instrumental" : result.synced ? @"timed" : @"untimed");
         done(result);
     });

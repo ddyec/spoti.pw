@@ -31,7 +31,7 @@ static NSDictionary *bestOf(id results, NSInteger seconds) {
 
 SGLyricsAsk SGBiniLyricsAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *result)) {
     if (!query.title.length || !query.artist.length) {
-        SGLog(@"binilyrics: nothing to search with for %@", query.trackID);
+        SGLyricsLog(@"binilyrics: nothing to search with for %@", query.trackID);
         done(nil);
         return;
     }
@@ -44,14 +44,14 @@ SGLyricsAsk SGBiniLyricsAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResul
     SGLyricsGetJSON(SGLyricsURL(kAPI, search), nil, ^(id root) {
         NSDictionary *found = bestOf([root isKindOfClass:NSDictionary.class] ? root[@"results"] : nil, query.seconds);
         if (!found) {
-            SGLog(@"binilyrics: nothing within %lds of %@ by %@", (long)kLengthSlack, query.title, query.artist);
+            SGLyricsLog(@"binilyrics: nothing within %lds of %@ by %@", (long)kLengthSlack, query.title, query.artist);
             done(nil);
             return;
         }
         SGLyricsGetText([NSURL URLWithString:found[@"lyricsUrl"]], ^(NSString *ttml) {
             NSArray<SGKaraokeLine *> *lines = SGTTMLLines(ttml);
             if (!lines) {
-                SGLog(@"binilyrics: %@ gave nothing the page could show", found[@"lyricsUrl"]);
+                SGLyricsLog(@"binilyrics: track %@ downloaded lyrics but no timed lines were parsed", query.trackID);
                 done(nil);
                 return;
             }
@@ -64,7 +64,7 @@ SGLyricsAsk SGBiniLyricsAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResul
             SGLyricsPageLines(lines, &starts, &texts);
             result.starts = starts;
             result.texts = texts;
-            SGLog(@"binilyrics: %@ by %@ has %lu %@ lines", query.title, query.artist,
+            SGLyricsLog(@"binilyrics: %@ by %@ has %lu %@ lines", query.title, query.artist,
                   (unsigned long)lines.count, result.wordTimed ? @"word timed" : @"line timed");
             done(result);
         });

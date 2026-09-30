@@ -43,17 +43,41 @@ NSString *SGLyricsLeadArtist(NSString *artists) {
     return artistParts(artists).firstObject;
 }
 
+static NSString *kanaArtistKey(NSString *artist) {
+    if (!artist.length) return @"";
+    // Only bridge kana spellings to romanisation; do not guess kanji readings.
+    BOOL kana = NO;
+    for (NSUInteger i = 0; i < artist.length; i++) {
+        unichar c = [artist characterAtIndex:i];
+        if ((c >= 0x3040 && c <= 0x30ff) || (c >= 0xff66 && c <= 0xff9d)) kana = YES;
+        if (c >= 0x3400 && c <= 0x9fff) return @"";
+    }
+    return kana ? comparable([artist stringByApplyingTransform:NSStringTransformToLatin reverse:NO]) : @"";
+}
+
+NSArray<NSString *> *SGLyricsSearchArtists(NSString *artists) {
+    NSArray *parts = artistParts(artists);
+    NSMutableOrderedSet *result = [NSMutableOrderedSet orderedSet];
+    // Labels may be first or last in the international release. Bound fallback requests.
+    if (parts.count) [result addObject:parts.firstObject];
+    if (parts.count > 1) [result addObject:parts.lastObject];
+    if (parts.count > 2) [result addObject:parts[1]];
+    return result.array;
+}
+
 NSUInteger SGLyricsArtistMatchCount(NSString *candidate, NSString *wanted) {
     NSArray<NSString *> *candidateParts = artistParts(candidate);
     NSUInteger matches = 0;
     for (NSString *wantedPart in artistParts(wanted)) {
         NSString *name = comparable(wantedPart);
-        if (name.length < 4) continue;
+        if (name.length < 2) continue;
         for (NSString *candidatePart in candidateParts) {
             NSString *other = comparable(candidatePart);
-            if (other.length >= 4 && ([name isEqualToString:other] ||
+            if (other.length >= 2 && ([name isEqualToString:other] ||
                                       (MIN(name.length, other.length) >= 6 &&
-                                       ([name containsString:other] || [other containsString:name])))) {
+                                       ([name containsString:other] || [other containsString:name])) ||
+                                      (name.length >= 4 && [[kanaArtistKey(candidatePart) lowercaseString] isEqualToString:name]) ||
+                                      (other.length >= 4 && [[kanaArtistKey(wantedPart) lowercaseString] isEqualToString:other]))) {
                 matches++;
                 break;
             }
@@ -64,18 +88,51 @@ NSUInteger SGLyricsArtistMatchCount(NSString *candidate, NSString *wanted) {
 
 BOOL SGLyricsTimedCredit(NSString *text) {
     if (![text isKindOfClass:NSString.class]) return NO;
+    text = [[text stringByReplacingOccurrencesOfString:@"\uFEFF" withString:@""]
+                 stringByReplacingOccurrencesOfString:@"\u200B" withString:@""];
     static NSRegularExpression *credit;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         credit = [NSRegularExpression regularExpressionWithPattern:
-            @"^\\s*(?:作词|作曲|编曲|演唱|原唱|歌手|混音(?:师)?|录音(?:师)?|母带(?:处理工程师)?|制作(?:人)?|出品|策划|监制|发行|合声|和声|原声吉他|电吉他|乐队|词|曲|Lyrics? by|Composed by|Arranged by|Produced by|Vocal(?:ist)?|OP|SP)(?:\\s+[A-Za-z][A-Za-z&/ ]{0,30})?\\s*[:：]"
+            @"^\\s*(?:作词|作曲|编曲|演唱|原唱|歌手|词曲|混音(?:师)?|录音(?:师)?|母带(?:处理工程师)?|制作(?:人)?|出品|策划|监制|发行|合声|和声|人声|吉他|原声吉他|电吉他|贝斯|貝斯|鼓|弦乐|弦樂|钢琴|鋼琴|乐队|音乐制作|词|曲|Lyrics?(?: by)?|Composer|Composed by|Arranged by|Produced by|Vocals?(?:ist)?|Singer|Artist|OP|SP)(?:\\s*[/／&、]\\s*(?:作词|作曲|编曲|词|曲))?(?:\\s*[（(][^）)]{0,40}[）)])?(?:\\s+[A-Za-z][A-Za-z&/ ]{0,30})?\\s*[:：]"
             options:NSRegularExpressionCaseInsensitive error:nil];
     });
     return [credit firstMatchInString:text options:0 range:NSMakeRange(0, text.length)] != nil;
 }
 
+// Catalogue titles often append the film/game and the kind of theme. Only remove a
+// delimited description with a recognised theme marker; recording versions stay intact.
+NSString *SGLyricsSearchTitle(NSString *title) {
+    if (![title isKindOfClass:NSString.class]) return @"";
+    NSString *value = [title precomposedStringWithCompatibilityMapping];
+    static NSRegularExpression *suffix, *theme, *version;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        suffix = [NSRegularExpression regularExpressionWithPattern:
+            @"\\s+(?:[-–—:]\\s+)(.+)$|\\s*[\\(\\[（【](.+)[\\)\\]）】]\\s*$" options:0 error:nil];
+        theme = [NSRegularExpression regularExpressionWithPattern:
+            @"\\b(?:theme|soundtrack|OST)\\b|主题曲|主題曲|片头曲|片頭曲|片尾曲|插曲|印象曲"
+            options:NSRegularExpressionCaseInsensitive error:nil];
+        version = [NSRegularExpression regularExpressionWithPattern:
+            @"\\b(?:live|remix|mix|bootleg|cover|instrumental|acoustic|karaoke|demo|remaster(?:ed)?|piano|sped[ -]+up|slowed)\\b|现场|現場|伴奏|翻唱|混音|加速|降速|重制|重製|片段|剪辑|剪輯|钢琴|鋼琴|纯音乐|純音樂"
+            options:NSRegularExpressionCaseInsensitive error:nil];
+    });
+    // Check the whole suffix, including a nested version such as
+    // Song - Soundtrack Theme (Instrumental), before removing anything.
+    NSTextCheckingResult *match = [suffix firstMatchInString:value options:0 range:NSMakeRange(0, value.length)];
+    if (match && match.range.location > 0) {
+        NSString *description = [value substringWithRange:match.range];
+        if ([theme firstMatchInString:description options:0 range:NSMakeRange(0, description.length)] &&
+            ![version firstMatchInString:description options:0 range:NSMakeRange(0, description.length)]) {
+            return [[value substringToIndex:match.range.location]
+                stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+        }
+    }
+    return [title stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+}
+
 BOOL SGLyricsTitleMatches(NSString *candidate, NSString *wanted) {
-    NSString *a = comparable(candidate), *b = comparable(wanted);
+    NSString *a = comparable(SGLyricsSearchTitle(candidate)), *b = comparable(SGLyricsSearchTitle(wanted));
     if (!a.length || !b.length) return NO;
     if ([a isEqualToString:b]) return YES;
     // Do not turn "Love" into "Love Story", or a studio recording into a live/remix.
@@ -91,10 +148,26 @@ BOOL SGLyricsTitleMatches(NSString *candidate, NSString *wanted) {
     }
     // Chinese-only substrings are not evidence of a bilingual alias.
     if (SGLyricsContainsHan(shorter)) return NO;
-    for (NSString *version in @[@"现场", @"伴奏", @"翻唱", @"混音", @"加速", @"降速"]) {
+    for (NSString *version in @[@"现场", @"現場", @"伴奏", @"翻唱", @"混音", @"加速", @"降速",
+                                @"片段", @"剪辑", @"剪輯", @"演绎", @"演繹", @"钢琴", @"鋼琴", @"纯音乐", @"純音樂", @"重制", @"重製"]) {
         if ([rest containsString:version]) return NO;
     }
     return YES;
+}
+
+BOOL SGLyricsTranslatedTitleCandidate(NSString *candidate, SGLyricsQuery *query) {
+    if (!query.referenceLines.count || ![candidate isKindOfClass:NSString.class]) return NO;
+    NSString *a = SGLyricsSearchTitle(candidate), *b = SGLyricsSearchTitle(query.title);
+    if (SGLyricsContainsHan(a) == SGLyricsContainsHan(b)) return NO;
+    static NSRegularExpression *version;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        version = [NSRegularExpression regularExpressionWithPattern:
+            @"\\b(?:live|remix|mix|edit|extended|bootleg|cover|instrumental|acoustic|karaoke|demo|piano|remaster(?:ed)?|sped[ -]+up|slowed)\\b|现场|現場|伴奏|翻唱|混音|加速|降速|片段|剪辑|剪輯|重制|重製|钢琴|鋼琴|纯音乐|純音樂"
+            options:NSRegularExpressionCaseInsensitive error:nil];
+    });
+    for (NSString *title in @[a, b]) if ([version firstMatchInString:title options:0 range:NSMakeRange(0, title.length)]) return NO;
+    return YES; // Tentative only: the downloaded original lyrics MUST validate it.
 }
 
 static NSDictionary<NSString *, NSArray<NSNumber *> *> *textIndex(NSArray<SGKaraokeLine *> *lines) {
@@ -130,29 +203,74 @@ static NSInteger recordingOffset(NSArray<SGKaraokeLine *> *target, NSArray<SGKar
 
 // Original source index -> displayed line index, with one-to-one matching and the same
 // tolerance for validation and application. Normalize each line once, not in a nested loop.
-static NSDictionary<NSNumber *, NSNumber *> *aligned(NSArray<SGKaraokeLine *> *target, NSArray<SGKaraokeLine *> *original) {
+static NSArray<NSDictionary *> *alignedGroups(NSArray<SGKaraokeLine *> *target, NSArray<SGKaraokeLine *> *original) {
     NSDictionary *targetIndex = textIndex(target), *originalIndex = textIndex(original);
     NSInteger offset = recordingOffset(target, original, targetIndex, originalIndex);
-    NSMutableDictionary *pairs = [NSMutableDictionary dictionary];
-    NSMutableIndexSet *used = [NSMutableIndexSet indexSet];
-    [original enumerateObjectsUsingBlock:^(SGKaraokeLine *source, NSUInteger i, BOOL *stop) {
-        NSString *text = comparable(SGKaraokeLineText(source));
-        NSArray<NSNumber *> *candidates = targetIndex[text];
-        NSInteger bestDistance = 2501;
-        NSNumber *best = nil;
-        for (NSNumber *candidate in candidates) {
-            NSUInteger j = candidate.unsignedIntegerValue;
-            if ([used containsIndex:j]) continue;
-            NSInteger distance = labs(target[j].start - source.start - offset);
-            if (distance < bestDistance) { best = candidate; bestDistance = distance; }
+    NSMutableDictionary<NSString *, NSMutableArray<NSDictionary *> *> *spans = [NSMutableDictionary dictionary];
+    for (NSUInteger j = 0; j < target.count; j++) {
+        NSMutableString *text = [NSMutableString string];
+        for (NSUInteger count = 1; count <= 4 && j + count <= target.count; count++) {
+            NSString *part = comparable(SGKaraokeLineText(target[j + count - 1]));
+            if (!part.length || SGLyricsTimedCredit(SGKaraokeLineText(target[j + count - 1]))) break;
+            if (count > 1 && target[j + count - 1].start - target[j + count - 2].start > 15000) break;
+            [text appendString:part];
+            if (!spans[text]) spans[[text copy]] = [NSMutableArray array];
+            [spans[text] addObject:@{@"target": @(j), @"targets": @(count)}];
         }
-        if (best) { pairs[@(i)] = best; [used addIndex:best.unsignedIntegerValue]; }
-    }];
+    }
+    NSMutableArray *groups = [NSMutableArray array];
+    NSMutableIndexSet *used = [NSMutableIndexSet indexSet];
+    for (NSUInteger i = 0; i < original.count; i++) {
+        NSMutableString *text = [NSMutableString string];
+        NSInteger bestDistance = 2501;
+        NSDictionary *best = nil;
+        for (NSUInteger count = 1; count <= 4 && i + count <= original.count; count++) {
+            NSString *part = comparable(SGKaraokeLineText(original[i + count - 1]));
+            if (!part.length || SGLyricsTimedCredit(SGKaraokeLineText(original[i + count - 1]))) break;
+            if (count > 1 && original[i + count - 1].start - original[i + count - 2].start > 15000) break;
+            [text appendString:part];
+            for (NSDictionary *span in spans[text]) {
+                NSUInteger j = [span[@"target"] unsignedIntegerValue], n = [span[@"targets"] unsignedIntegerValue];
+                if ([used intersectsIndexesInRange:NSMakeRange(j, n)]) continue;
+                // A group may cross line boundaries, never a different verse or chorus.
+                NSInteger distance = labs(target[j].start - original[i].start - offset);
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    best = @{@"source": @(i), @"sources": @(count), @"target": @(j), @"targets": @(n), @"characters": @(text.length)};
+                }
+            }
+        }
+        if (best) {
+            [groups addObject:best];
+            [used addIndexesInRange:NSMakeRange([best[@"target"] unsignedIntegerValue], [best[@"targets"] unsignedIntegerValue])];
+            i += [best[@"sources"] unsignedIntegerValue] - 1;
+        }
+    }
+    return groups;
+}
+
+static NSDictionary<NSNumber *, NSNumber *> *aligned(NSArray<SGKaraokeLine *> *target, NSArray<SGKaraokeLine *> *original) {
+    NSMutableDictionary *pairs = [NSMutableDictionary dictionary];
+    for (NSDictionary *group in alignedGroups(target, original)) {
+        NSUInteger start = [group[@"source"] unsignedIntegerValue], count = [group[@"sources"] unsignedIntegerValue];
+        for (NSUInteger i = start; i < start + count; i++) pairs[@(i)] = group[@"target"];
+    }
     return pairs;
 }
 
+BOOL SGLyricsRecordingMatches(NSArray<SGKaraokeLine *> *target, NSArray<SGKaraokeLine *> *candidate) {
+    NSUInteger matched = 0, total = 0;
+    for (SGKaraokeLine *line in target) total += comparable(SGKaraokeLineText(line)).length;
+    for (NSDictionary *group in alignedGroups(target, candidate)) matched += [group[@"characters"] unsignedIntegerValue];
+    // Shared words or two generic chorus lines alone must not establish an alias.
+    return matched >= 40 && total > 0 && matched * 2 >= total;
+}
+
 NSUInteger SGLyricsOriginalOverlap(NSArray<SGKaraokeLine *> *target, NSString *originalLRC) {
-    return aligned(target, SGLyricsLinesFromLRC(originalLRC)).count;
+    NSUInteger count = 0;
+    for (NSDictionary *group in alignedGroups(target, SGLyricsLinesFromLRC(originalLRC)))
+        count += MAX([group[@"sources"] unsignedIntegerValue], [group[@"targets"] unsignedIntegerValue]);
+    return count;
 }
 
 // Translation LRCs sometimes shift every timestamp by the same amount. Estimate that shift
@@ -186,7 +304,10 @@ NSDictionary<NSNumber *, NSString *> *SGLyricsChineseTranslationMap(NSArray<SGKa
     NSArray<SGKaraokeLine *> *translated = SGLyricsLinesFromLRC(translatedLRC);
     NSDictionary<NSNumber *, NSNumber *> *pairs = aligned(target, original);
     NSMutableDictionary *updates = [NSMutableDictionary dictionary];
-    if (!target.count || !translated.count || pairs.count < MIN((NSUInteger)2, target.count)) return updates;
+    NSUInteger matchingLines = 0;
+    for (NSDictionary *group in alignedGroups(target, original))
+        matchingLines += MAX([group[@"sources"] unsignedIntegerValue], [group[@"targets"] unsignedIntegerValue]);
+    if (!target.count || !translated.count || matchingLines < MIN((NSUInteger)2, target.count)) return updates;
     NSInteger offset = translationOffset(original, translated, pairs);
     NSMutableIndexSet *used = [NSMutableIndexSet indexSet];
     NSMutableDictionary<NSString *, NSString *> *repeated = [NSMutableDictionary dictionary];
@@ -214,7 +335,10 @@ NSDictionary<NSNumber *, NSString *> *SGLyricsChineseTranslationMap(NSArray<SGKa
         if (best == NSNotFound) continue;
         [used addIndex:best];
         NSString *text = SGKaraokeLineText(translated[best]);
-        updates[pairs[@(i)]] = text;
+        NSNumber *destination = pairs[@(i)];
+        // Several source lines can form one displayed sentence. Keep their translations
+        // in source order; never overwrite the earlier half with the later half.
+        updates[destination] = updates[destination] ? [updates[destination] stringByAppendingFormat:@"\n%@", text] : text;
         if (repeated[sourceText] && ![repeated[sourceText] isEqualToString:text]) [ambiguous addObject:sourceText];
         repeated[sourceText] = text;
     }

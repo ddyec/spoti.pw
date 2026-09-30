@@ -74,7 +74,7 @@ static void call(NSString *method, NSDictionary<NSString *, NSString *> *query, 
     [[NSURLSession.sharedSession dataTaskWithRequest:requestFor(method, query) completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
         SGLyricsNoteReply(response, error);
         id message = dig(jsonOf(data), @"message");
-        if (error || !message) SGLog(@"musixmatch: %@ failed: status %ld, error %@", method, (long)[(NSHTTPURLResponse *)response statusCode], error);
+        if (error || !message) SGLyricsLog(@"musixmatch: %@ failed: status %ld, error %@/%ld", method, (long)[(NSHTTPURLResponse *)response statusCode], error.domain ?: @"none", (long)error.code);
         dispatch_async(dispatch_get_main_queue(), ^{ done([message isKindOfClass:NSDictionary.class] ? message : nil); });
     }] resume];
 }
@@ -94,7 +94,7 @@ static void withToken(void (^use)(NSString *token)) {
     call(@"token.get", @{}, ^(NSDictionary *message) {
         id fresh = dig(message, @"body/user_token");
         BOOL usable = [fresh isKindOfClass:NSString.class] && [fresh length] && ![fresh isEqualToString:@"UpgradeRequired"];
-        SGLog(@"musixmatch: token %@ (status %@, hint %@)", usable ? @"received" : @"refused", dig(message, @"header/status_code"), dig(message, @"header/hint"));
+        SGLyricsLog(@"musixmatch: token %@ (status %@, hint %@)", usable ? @"received" : @"refused", dig(message, @"header/status_code"), dig(message, @"header/hint"));
         if (usable) [NSUserDefaults.standardUserDefaults setObject:fresh forKey:kTokenKey];
         else sg_tokenRefused = NSDate.date;
         NSArray<void (^)(NSString *)> *waiting = [sg_tokenWaiting copy];
@@ -311,7 +311,7 @@ static void fetchTranslations(SGLyricsResult *lyrics, NSString *musixmatchTrackI
         id list = dig(message, @"body/translations_list");
         NSUInteger count = [list isKindOfClass:NSArray.class] ? [list count] : 0;
         NSUInteger matched = status == 200 ? applyTranslations(lyrics, list) : 0;
-        SGLog(@"musixmatch: translation %@ status %ld, %lu entries, %lu matched lines",
+        SGLyricsLog(@"musixmatch: translation %@ status %ld, %lu entries, %lu matched lines",
               language, (long)status, (unsigned long)count, (unsigned long)matched);
         if (matched) {
             [NSNotificationCenter.defaultCenter postNotificationName:SGLyricsTranslationUpdatedNotification object:spotifyTrackID];
@@ -349,7 +349,7 @@ static void ask(NSString *trackID, BOOL renewToken) {
         }, ^(NSDictionary *message) {
             NSInteger status = [dig(message, @"header/status_code") integerValue];
             if (status == 401 && renewToken) {
-                SGLog(@"musixmatch: token no longer accepted (hint %@), asking for a new one", dig(message, @"header/hint"));
+                SGLyricsLog(@"musixmatch: token no longer accepted (hint %@), asking for a new one", dig(message, @"header/hint"));
                 [NSUserDefaults.standardUserDefaults removeObjectForKey:kTokenKey];
                 ask(trackID, NO);
                 return;
@@ -366,7 +366,7 @@ static void ask(NSString *trackID, BOOL renewToken) {
                 SGLyricsResult *lyrics = fromCalls(calls);
                 SGLyricsResult *named = withTrack(lyrics, track);
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    SGLog(@"musixmatch: %@ has %@", trackID, !lyrics ? @"no lyrics it may show"
+                    SGLyricsLog(@"musixmatch: %@ has %@", trackID, !lyrics ? @"no lyrics it may show"
                           : lyrics.wordTimed ? [NSString stringWithFormat:@"%lu word timed lines", (unsigned long)lyrics.karaokeLines.count]
                           : lyrics.synced ? [NSString stringWithFormat:@"%lu line timed lines", (unsigned long)lyrics.karaokeLines.count]
                           : [NSString stringWithFormat:@"%lu untimed lines", (unsigned long)lyrics.texts.count]);

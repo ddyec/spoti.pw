@@ -23,6 +23,9 @@ jobs:
         with:
           xcode-version: latest-stable
 
+      - name: Check lyrics recording identity
+        run: python3 scripts/test-lyrics-identity.py
+
       - uses: actions/checkout@v5
         with:
           repository: theos/theos

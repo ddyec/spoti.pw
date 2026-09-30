@@ -12,7 +12,7 @@ static const NSInteger kLengthSlack = 4;
 
 SGLyricsAsk SGUnisonAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *result)) {
     if (!query.title.length || !query.artist.length) {
-        SGLog(@"unison: nothing to search with for %@", query.trackID);
+        SGLyricsLog(@"unison: nothing to search with for %@", query.trackID);
         done(nil);
         return;
     }
@@ -26,19 +26,19 @@ SGLyricsAsk SGUnisonAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *r
     SGLyricsGetJSON(SGLyricsURL(kAPI, search), nil, ^(id root) {
         id data = [root isKindOfClass:NSDictionary.class] ? root[@"data"] : nil;
         if (![data isKindOfClass:NSDictionary.class]) {
-            SGLog(@"unison: no lyrics for %@ by %@", query.title, query.artist);
+            SGLyricsLog(@"unison: no lyrics for %@ by %@", query.title, query.artist);
             done(nil);
             return;
         }
         // Unison also keeps LRC and plain text, which carry nothing the other sources do not.
         if (![data[@"format"] isEqual:@"ttml"]) {
-            SGLog(@"unison: %@ by %@ is %@, not ttml", query.title, query.artist, data[@"format"]);
+            SGLyricsLog(@"unison: %@ by %@ is %@, not ttml", query.title, query.artist, data[@"format"]);
             done(nil);
             return;
         }
         NSInteger length = [data[@"duration"] integerValue];
         if (query.seconds > 0 && length > 0 && labs(length - query.seconds) > kLengthSlack) {
-            SGLog(@"unison: %@ is %lds against the track's %lds", query.title, (long)length, (long)query.seconds);
+            SGLyricsLog(@"unison: %@ is %lds against the track's %lds", query.title, (long)length, (long)query.seconds);
             done(nil);
             return;
         }
@@ -56,7 +56,7 @@ SGLyricsAsk SGUnisonAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *r
         SGLyricsPageLines(lines, &starts, &texts);
         result.starts = starts;
         result.texts = texts;
-        SGLog(@"unison: %@ by %@ has %lu %@ lines (%@ confidence)", query.title, query.artist,
+        SGLyricsLog(@"unison: %@ by %@ has %lu %@ lines (%@ confidence)", query.title, query.artist,
               (unsigned long)lines.count, result.wordTimed ? @"word timed" : @"line timed", data[@"confidence"]);
         done(result);
     });

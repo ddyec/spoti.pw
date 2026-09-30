@@ -44,6 +44,11 @@ static BOOL matches(NSDictionary *song, SGLyricsQuery *query) {
     return SGLyricsTitleMatches(title, query.title) && matchesRecording(song, query);
 }
 
+static BOOL eligible(NSDictionary *song, SGLyricsQuery *query, BOOL requireTitle) {
+    if (!matchesRecording(song, query)) return NO;
+    return !requireTitle || matches(song, query) || SGLyricsTranslatedTitleCandidate(song[@"title"] ?: song[@"songname"], query);
+}
+
 static NSString *decoded(NSDictionary *data, NSString *key) {
     NSString *encoded = [data[key] isKindOfClass:NSString.class] ? data[key] : nil;
     NSData *bytes = encoded.length ? [[NSData alloc] initWithBase64EncodedString:encoded options:0] : nil;
@@ -99,7 +104,6 @@ static NSArray<SGKaraokeLine *> *linesFromQRC(NSString *xml) {
         part = [NSRegularExpression regularExpressionWithPattern:@"\\((\\d+),(\\d+)\\)" options:0 error:nil];
     });
     NSMutableArray<SGKaraokeLine *> *lines = [NSMutableArray array];
-    BOOL singing = NO;
     for (NSString *rawRow in [body componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
         NSString *row = [rawRow stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet];
         NSTextCheckingResult *head = [header firstMatchInString:row options:0 range:NSMakeRange(0, row.length)];
@@ -140,13 +144,16 @@ static NSArray<SGKaraokeLine *> *linesFromQRC(NSString *xml) {
         if (!words.count) continue;
         SGKaraokeLine *line = [SGKaraokeLine new];
         line.words = words;
-        line.start = lineStart;
-        line.end = MAX(lineStart + lineLength, words.lastObject.end);
+        // The word clock is the singing clock. A padded line header can begin in
+        // the preceding credits or intro, so do not use it to drive scrolling.
+        line.start = words.firstObject.start;
+        line.end = words.lastObject.end;
         line.timing = SGKaraokeTimingWords;
         NSString *text = SGKaraokeLineText(line);
-        if (!singing && line.start < 30000 && SGLyricsTimedCredit(text)) continue;
-        if (!singing && line.start < 30000 && [text containsString:@" - "]) continue;
-        singing = YES;
+        if (SGLyricsTimedCredit(text)) {
+            if (SGLyricsDiagnosticsEnabled()) SGLyricsLog(@"qqmusic: removed credit at %ldms", (long)line.start);
+            continue;
+        }
         [lines addObject:line];
     }
     return lines.count ? lines : nil;
@@ -156,6 +163,7 @@ static SGLyricsResult *resultForLines(NSArray<SGKaraokeLine *> *lines) {
     if (!lines.count) return nil;
     SGLyricsResult *result = [SGLyricsResult new];
     result.synced = YES;
+    result.wordTimed = SGKaraokeLinesTiming(lines) == SGKaraokeTimingWords;
     result.karaokeLines = lines;
     NSArray<NSNumber *> *starts;
     NSArray<NSString *> *texts;
@@ -172,14 +180,17 @@ static void lyricsForSong(NSNumber *songID, void (^done)(SGLyricsResult *)) {
             NSArray<SGKaraokeLine *> *lines = xml ? linesFromQRC(xml) : nil;
             dispatch_async(dispatch_get_main_queue(), ^{
                 if (lines.count) {
-                    SGLog(@"qqmusic: QRC %@ decoded %lu word timed lines", songID, (unsigned long)lines.count);
+                    SGLyricsLog(@"qqmusic: QRC %@ decoded %lu word timed lines", songID, (unsigned long)lines.count);
                     done(resultForLines(lines));
                     return;
                 }
-                SGLog(@"qqmusic: QRC %@ unavailable; trying LRC", songID);
+                SGLyricsLog(@"qqmusic: QRC %@ unavailable; trying LRC", songID);
                 lyricReply(songID, NO, NO, ^(NSDictionary *lrcData) {
                     NSString *lrc = decoded(lrcData, @"lyric");
-                    done(resultForLines(lrc ? SGLyricsLinesFromLRC(lrc) : nil));
+                    dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+                        SGLyricsResult *result = resultForLines(lrc ? SGLyricsLinesFromLRC(lrc) : nil);
+                        dispatch_async(dispatch_get_main_queue(), ^{ done(result); });
+                    });
                 });
             });
         });
@@ -190,7 +201,7 @@ static void searchKeyword(NSString *keyword, void (^done)(NSArray<NSDictionary *
     NSDictionary *request = @{
         @"comm": @{@"ct": @"19", @"cv": @"1859", @"uin": @"0"},
         @"req": @{@"method": @"DoSearchForQQMusicDesktop", @"module": @"music.search.SearchCgiService",
-                  @"param": @{@"grp": @1, @"num_per_page": @15, @"page_num": @1,
+                  @"param": @{@"grp": @1, @"num_per_page": @40, @"page_num": @1,
                                @"query": keyword, @"search_type": @0}}
     };
     SGLyricsPostJSON([NSURL URLWithString:kMusicu], headers(), request, ^(id root) {
@@ -200,32 +211,58 @@ static void searchKeyword(NSString *keyword, void (^done)(NSArray<NSDictionary *
         NSDictionary *body = [data[@"body"] isKindOfClass:NSDictionary.class] ? data[@"body"] : nil;
         NSDictionary *song = [body[@"song"] isKindOfClass:NSDictionary.class] ? body[@"song"] : nil;
         NSArray *list = [song[@"list"] isKindOfClass:NSArray.class] ? song[@"list"] : @[];
+        SGLyricsLog(@"qqmusic: search '%@' status %@, %lu candidates", keyword, requestReply[@"code"], (unsigned long)list.count);
         done(list);
+    });
+}
+
+static void searchArtists(SGLyricsQuery *query, BOOL requireTitle, NSUInteger index, void (^done)(NSArray<NSDictionary *> *)) {
+    NSArray *artists = SGLyricsSearchArtists(query.artist);
+    if (index >= artists.count || !query.referenceLines.count) { done(@[]); return; }
+    searchKeyword(artists[index], ^(NSArray<NSDictionary *> *list) {
+        for (id song in list) if ([song isKindOfClass:NSDictionary.class] && eligible(song, query, requireTitle)) { done(list); return; }
+        searchArtists(query, requireTitle, index + 1, done);
     });
 }
 
 static void search(SGLyricsQuery *query, BOOL requireTitle, void (^done)(NSArray<NSDictionary *> *list)) {
     if (!query.title.length || !query.artist.length) { done(@[]); return; }
     NSString *lead = SGLyricsLeadArtist(query.artist) ?: query.artist;
-    searchKeyword([NSString stringWithFormat:@"%@ %@", query.title, lead], ^(NSArray<NSDictionary *> *list) {
+    NSString *title = SGLyricsSearchTitle(query.title);
+    searchKeyword([NSString stringWithFormat:@"%@ %@", title, lead], ^(NSArray<NSDictionary *> *list) {
         for (NSDictionary *song in list) {
             if ([song isKindOfClass:NSDictionary.class] &&
-                (requireTitle ? matches(song, query) : matchesRecording(song, query))) { done(list); return; }
+                eligible(song, query, requireTitle)) { done(list); return; }
         }
         // Some catalogues omit the international title or index only the single's title.
-        searchKeyword(query.title, done);
+        searchKeyword(title, ^(NSArray<NSDictionary *> *titleList) {
+            for (id song in titleList) if ([song isKindOfClass:NSDictionary.class] && eligible(song, query, requireTitle)) { done(titleList); return; }
+            if (requireTitle) done(@[]);
+            else searchArtists(query, requireTitle, 0, done);
+        });
     });
 }
 
-static void findSongs(SGLyricsQuery *query, void (^done)(NSArray<NSNumber *> *songIDs)) {
-    search(query, YES, ^(NSArray<NSDictionary *> *list) {
+static void findSongsAt(SGLyricsQuery *query, NSUInteger attempt, void (^done)(NSArray<NSDictionary *> *songs)) {
+    NSArray *artists = SGLyricsSearchArtists(query.artist);
+    if (attempt && (!query.referenceLines.count || attempt > artists.count)) { done(@[]); return; }
+    void (^receive)(NSArray<NSDictionary *> *) = ^(NSArray<NSDictionary *> *list) {
         NSMutableArray<NSDictionary *> *fitting = [NSMutableArray array];
         for (NSDictionary *candidate in list) {
-            if (![candidate isKindOfClass:NSDictionary.class] || !matches(candidate, query) ||
+            if (SGLyricsDiagnosticsEnabled() && [candidate isKindOfClass:NSDictionary.class]) {
+                NSInteger seconds = [candidate[@"interval"] respondsToSelector:@selector(integerValue)]
+                    ? [candidate[@"interval"] integerValue] : 0;
+                SGLyricsDiagnosticCandidate(@"qqmusic", query, candidate[@"title"] ?: candidate[@"songname"],
+                                            singers(candidate), seconds, 6, YES);
+                if (![candidate[@"id"] isKindOfClass:NSNumber.class]) SGLyricsLog(@"qqmusic: candidate has no usable song ID");
+            }
+            if (![candidate isKindOfClass:NSDictionary.class] || !eligible(candidate, query, YES) ||
                 ![candidate[@"id"] isKindOfClass:NSNumber.class]) continue;
             [fitting addObject:candidate];
         }
         [fitting sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
+            BOOL aTitle = matches(a, query), bTitle = matches(b, query);
+            if (aTitle != bTitle) return aTitle ? NSOrderedAscending : NSOrderedDescending;
             NSUInteger aScore = SGLyricsArtistMatchCount(singers(a), query.artist);
             NSUInteger bScore = SGLyricsArtistMatchCount(singers(b), query.artist);
             if (aScore != bScore) return aScore > bScore ? NSOrderedAscending : NSOrderedDescending;
@@ -233,29 +270,45 @@ static void findSongs(SGLyricsQuery *query, void (^done)(NSArray<NSNumber *> *so
             NSInteger bGap = labs([b[@"interval"] integerValue] - query.seconds);
             return aGap < bGap ? NSOrderedAscending : aGap > bGap ? NSOrderedDescending : NSOrderedSame;
         }];
-        NSMutableArray<NSNumber *> *ids = [NSMutableArray array];
+        NSMutableArray<NSDictionary *> *ids = [NSMutableArray array];
+        NSMutableSet *seen = [NSMutableSet set];
         for (NSDictionary *song in fitting) {
-            if (ids.count >= 3) break;
-            if (![ids containsObject:song[@"id"]]) [ids addObject:song[@"id"]];
+            if (ids.count >= 6) break;
+            if (![seen containsObject:song[@"id"]]) { [ids addObject:song]; [seen addObject:song[@"id"]]; }
         }
-        if (!ids.count) SGLog(@"qqmusic: no matching recording for %@ by %@", query.title, query.artist);
+        if (!ids.count) SGLyricsLog(@"qqmusic: no matching recording for %@ by %@", query.title, query.artist);
         done(ids);
-    });
+    };
+    if (!attempt) search(query, YES, receive);
+    else searchKeyword(artists[attempt - 1], receive);
 }
 
-static void tryLyrics(NSArray<NSNumber *> *ids, NSUInteger index, void (^done)(SGLyricsResult *)) {
+static void tryLyrics(NSArray<NSDictionary *> *ids, NSUInteger index, SGLyricsQuery *query, void (^done)(SGLyricsResult *)) {
     if (index >= ids.count) { done(nil); return; }
-    lyricsForSong(ids[index], ^(SGLyricsResult *result) {
-        if (result) done(result);
-        else tryLyrics(ids, index + 1, done);
+    NSDictionary *song = ids[index];
+    lyricsForSong(song[@"id"], ^(SGLyricsResult *result) {
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+            BOOL verified = result && (matches(song, query) || SGLyricsRecordingMatches(query.referenceLines, result.karaokeLines));
+            dispatch_async(dispatch_get_main_queue(), ^{
+                SGLyricsLog(@"qqmusic: candidate %@ title '%@' recording evidence %@", song[@"id"], song[@"title"], verified ? @"accepted" : @"rejected");
+                if (verified) done(result);
+                else tryLyrics(ids, index + 1, query, done);
+            });
+        });
     });
 }
 
-SGLyricsAsk SGQQMusicAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *)) {
-    findSongs(query, ^(NSArray<NSNumber *> *ids) {
-        tryLyrics(ids, 0, done);
+static void askAt(SGLyricsQuery *query, NSUInteger attempt, void (^done)(SGLyricsResult *)) {
+    findSongsAt(query, attempt, ^(NSArray<NSDictionary *> *ids) {
+        tryLyrics(ids, 0, query, ^(SGLyricsResult *result) {
+            if (result) done(result);
+            else if (query.referenceLines.count && attempt < SGLyricsSearchArtists(query.artist).count) askAt(query, attempt + 1, done);
+            else done(nil);
+        });
     });
-};
+}
+
+SGLyricsAsk SGQQMusicAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *)) { askAt(query, 0, done); };
 
 static void tryTranslations(NSArray<NSDictionary *> *songs, NSUInteger index, SGLyricsQuery *query,
                             NSArray<SGKaraokeLine *> *target, SGLyricsTranslationReply done) {
@@ -272,7 +325,7 @@ static void tryTranslations(NSArray<NSDictionary *> *songs, NSUInteger index, SG
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
             NSUInteger overlap = translated.length ? SGLyricsOriginalOverlap(target, original) : 0;
             dispatch_async(dispatch_get_main_queue(), ^{
-                SGLog(@"qqmusic: translation candidate %@ title %@, %lu original lines match",
+                SGLyricsLog(@"qqmusic: translation candidate %@ title %@, %lu original lines match",
                       songID, song[@"title"], (unsigned long)overlap);
                 if (overlap >= MIN((NSUInteger)2, target.count)) done(original, translated);
                 else tryTranslations(songs, index + 1, query, target, done);
