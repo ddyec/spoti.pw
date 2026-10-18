@@ -1,5 +1,5 @@
-// Native preview owns its surface: Spotify may never create LyricsContainerView, or may
-// give it zero bounds when its separate preview model has no data. Player controller,
+// Spotify's preview wins when it actually has visible text. A fallback surface exists
+// only when the native preview model has no data. Player controller,
 // information unit and cover classes/selectors are proven by the existing player hooks
 // and recorded player tree. No flag or private preview model is needed here.
 #import "Core/SGCore.h"
@@ -10,6 +10,8 @@
 
 static char kPreviewKey;
 static __weak UIView *sg_previewHost, *sg_previewInfo;
+static __weak UIView *sg_platformPreview;
+static void updatePreview(UIView *host);
 
 static BOOL SGNativeLyricsPreviewAvailable(void) {
     if (SGHidden(SGHideLyricsInline) || !SGLyricsEnabled()) return NO;
@@ -37,10 +39,20 @@ static BOOL showing(UIView *view, UIView *host) {
     return YES;
 }
 
+static BOOL nativePreviewHasText(void) {
+    UIView *view = sg_platformPreview;
+    if (!showing(view, sg_previewHost) || view.bounds.size.height < 1) return NO;
+    __block BOOL hasText = NO;
+    SGForEachView(view, ^(UIView *child) {
+        if ([child isKindOfClass:UILabel.class] && showing(child, view) &&
+            ((UILabel *)child).text.length && child.bounds.size.height > 0) hasText = YES;
+    });
+    return hasText;
+}
+
 @interface SGNativeLyricsPreview : UILabel
 @property (nonatomic, strong) NSTimer *timer;
 @property (nonatomic, weak) UIView *cover;
-@property (nonatomic, weak) UIView *platformPreview;
 @property (nonatomic, copy) NSString *lastDiagnostic;
 - (void)refresh;
 - (void)findCover;
@@ -74,7 +86,7 @@ static BOOL showing(UIView *view, UIView *host) {
     __block UIView *found = nil;
     SGForEachView(host, ^(UIView *view) {
         if ([NSStringFromClass(view.class) isEqualToString:@"_TtC22Lyrics_NPVContainerKit19LyricsContainerView"])
-            self.platformPreview = view;
+            sg_platformPreview = view;
         if (view.bounds.size.width >= 200 && showing(view, host) &&
             [NSStringFromClass(view.class) isEqualToString:@"_TtC35CreativeWorkCommons_CoverArtTiltKit16CoverArtTiltView"]) {
             CGRect rect = [host convertRect:view.bounds fromView:view];
@@ -88,6 +100,12 @@ static BOOL showing(UIView *view, UIView *host) {
     if (UIApplication.sharedApplication.applicationState != UIApplicationStateActive) return;
     UIView *host = self.superview, *info = sg_previewInfo;
     if (!host) return;
+    if (nativePreviewHasText()) {
+        SGLyricsLog(@"preview: native text visible; removing custom fallback");
+        [self removeFromSuperview];
+        objc_setAssociatedObject(host, &kPreviewKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        return;
+    }
     BOOL geometry = showing(self.cover, host) && showing(info, host);
     CGRect coverRect = geometry ? [host convertRect:self.cover.bounds fromView:self.cover] : CGRectZero;
     CGRect infoRect = geometry ? [host convertRect:info.bounds fromView:info] : CGRectZero;
@@ -110,9 +128,7 @@ static BOOL showing(UIView *view, UIView *host) {
     }
     if (![self.text isEqualToString:text]) self.text = text;
     self.alpha = geometry && available && text.length ? 0.85 : 0;
-    // No arranged views are removed or collapsed. Restore the native styling whenever
-    // our line is unavailable, including an instrumental gap or the hide switch.
-    self.platformPreview.alpha = self.alpha > 0 ? 0 : (SGFlag(SGKeyPlayerBackdrop, NO) ? 0.72 : 1);
+    // Never hide or restyle Spotify's own preview to make the fallback win.
     if (SGLyricsDiagnosticsEnabled()) {
         NSString *reason = SGHidden(SGHideLyricsInline) ? @"hiddenBySetting" :
             (!SGLyricsEnabled() ? @"sourcesOff" : (!geometry ? @"noGeometry" :
@@ -131,6 +147,11 @@ static BOOL showing(UIView *view, UIView *host) {
 
 static void updatePreview(UIView *host) {
     SGNativeLyricsPreview *preview = objc_getAssociatedObject(host, &kPreviewKey);
+    if (nativePreviewHasText() || SGHidden(SGHideLyricsInline)) {
+        [preview removeFromSuperview];
+        objc_setAssociatedObject(host, &kPreviewKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        return;
+    }
     if (!preview && SGLyricsEnabled()) {
         preview = [[SGNativeLyricsPreview alloc] initWithFrame:CGRectZero];
         objc_setAssociatedObject(host, &kPreviewKey, preview, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -156,6 +177,14 @@ static void updatePreview(UIView *host) {
 - (void)viewDidLayoutSubviews {
     %orig;
     sg_previewInfo = ((UIViewController *)self).viewIfLoaded;
+    if (sg_previewHost) updatePreview(sg_previewHost);
+}
+%end
+
+%hook _TtC22Lyrics_NPVContainerKit19LyricsContainerView
+- (void)layoutSubviews {
+    %orig;
+    sg_platformPreview = (UIView *)self;
     if (sg_previewHost) updatePreview(sg_previewHost);
 }
 %end

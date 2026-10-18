@@ -22,7 +22,6 @@ static NSHashTable<UIView *> *sg_tilts;
 // The cover of each tilt view once found. A frame Spotify sets on a scaled view becomes its scaled
 // size, leaving bounds that no longer match the tilt view's, so the cover is not looked for by size again.
 static NSMapTable<UIView *, UIView *> *sg_covers;
-static BOOL sg_previewRaised;
 
 static CGFloat currentScale(void) {
     SPTPlayerState *state = SGPlayerState();
@@ -56,8 +55,7 @@ static void scaleCover(UIView *tilt, CGFloat scale) {
     UIView *cover = coverIn(tilt);
     if (!cover) return;
     SGRShadowPlate *plate = SGRShadowPlateIn(tilt, &kPlateKey);
-    CGFloat previewScale = sg_previewRaised ? 0.86 : 1;
-    CGAffineTransform transform = CGAffineTransformMake(scale * previewScale, 0, 0, scale * previewScale, 0, sg_previewRaised ? -24 : 0);
+    CGAffineTransform transform = CGAffineTransformMakeScale(scale, scale);
     cover.transform = transform;
     plate.transform = transform;
 }
@@ -179,12 +177,6 @@ static void scaleEveryCover(BOOL animated) {
     };
     if (animated) SGRAnimate(SGRMotionLayout, apply, nil);
     else apply();
-}
-
-void SGRPlayerSetPreviewRaised(BOOL raised) {
-    if (raised == sg_previewRaised) return;
-    sg_previewRaised = raised;
-    scaleEveryCover(!UIAccessibilityIsReduceMotionEnabled());
 }
 
 %hook _TtC35CreativeWorkCommons_CoverArtTiltKit16CoverArtTiltView

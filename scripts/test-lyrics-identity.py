@@ -11,6 +11,8 @@ import sys
 root = Path(__file__).resolve().parents[1]
 audit = json.loads((root / 'docs/lyrics-live-audit-round2-2026-10-18.json').read_text(encoding='utf-8'))
 assert audit['all_passed'] and audit['reused_results'] == 0, 'Fresh multilingual audit did not pass'
+qq_audit = json.loads((root / 'docs/lyrics-qq-retry-2026-10-18.json').read_text(encoding='utf-8'))
+assert qq_audit['all_passed'], 'QQ phone-log regression audit did not pass'
 print('Fresh multilingual audit gate passed', flush=True)
 base = root / "tweak/Sources/Shared"
 def section(path, begin, end):
@@ -82,6 +84,7 @@ int main(void) {
         check(!SGLyricsTitleMatches(@"Animals（金坷垃）", @"Animals"), @"full-width qualifier rejected");
         check(SGLyricsTitleMatches(@"鴻門宴", @"鸿门宴"), @"traditional and simplified song title");
         check(SGLyricsArtistMatchCount(@"李荣浩", @"李榮浩") == 1, @"traditional and simplified artist");
+        check(SGLyricsArtistMatchCount(@"あたらよ (Atarayo)", @"Atarayo") == 1, @"QQ catalogue includes Spotify artist alias");
         check([SGLyricsSearchText(@"郭頂 - 水星記") isEqualToString:@"郭顶 - 水星记"], @"domestic query uses simplified Chinese");
         check([SGLyricsSearchText(@"IU - Love poem") isEqualToString:@"IU - Love poem"], @"catalogue casing retained in search");
         check(SGLyricsDurationSeconds(@274, 274) == 274, @"KuGou seconds are not divided twice");
@@ -106,7 +109,7 @@ int main(void) {
         check(shouldPublishPrefetchedLines(nil, split), @"prefetch publishes when Spotify never requested lyrics");
         check(!shouldPublishPrefetchedLines(split, nil), @"missing result never removes existing display lyrics");
         SGKaraokeLine *fine = [SGKaraokeLine new]; fine.timing = SGKaraokeTimingWords;
-        check(!shouldPublishPrefetchedLines(@[fine], split), @"prefetch retains finer Spotify word timing");
+        check(shouldPublishPrefetchedLines(@[fine], split), @"selected provider takes priority over finer Spotify timing");
         check(shouldPublishPrefetchedLines(split, @[fine]), @"word-timed provider upgrades display cache");
         NSString *joined = @"[00:08]The paper birds are flying over a quiet morning harbor\n[00:16]We watch the distant lights return";
         NSString *translation = @"[00:08]纸鸟飞过安静的晨港\n[00:16]我们看远方灯火归来";
@@ -205,3 +208,4 @@ with tempfile.TemporaryDirectory(prefix="lyrics-identity-") as directory:
     subprocess.run([str(path / "identity")], check=True)
 
 subprocess.run([sys.executable, str(root / 'scripts/test-lyrics-requests.py')], check=True)
+subprocess.run([sys.executable, str(root / 'scripts/test-lyrics-order.py')], check=True)

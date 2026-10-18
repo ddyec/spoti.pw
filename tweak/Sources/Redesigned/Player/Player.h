@@ -38,8 +38,6 @@
 @class SGRArtworkField, SGModSection;
 
 #define SGRKeyPlayerLyricsPreview @"spotifyglass.redesign.player.lyricsPreview"
-// Hooked lyrics arriving reserve space below the cover, using the artwork's existing transform.
-void SGRPlayerSetPreviewRaised(BOOL raised);
 #pragma mark - the background (PlayerBackgroundSettings.m)
 
 // What moves behind the player, picked on Mod Settings' Player page (Redesigned/NowPlayingBar/

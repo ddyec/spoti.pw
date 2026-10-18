@@ -40,7 +40,10 @@ def title_match(a,b):
     return catalogue.title_match(ca,cb)
 
 def artist_score(a,b):
-    return sum(any(normalized(x) == normalized(y) for x in catalogue.SEP.split(a))
+    def matches(x,y):
+        x,y=normalized(x),normalized(y)
+        return len(y)>=2 and (x==y or (min(len(x),len(y))>=6 and (x in y or y in x)))
+    return sum(any(matches(x,y) for x in catalogue.SEP.split(a))
                for y in catalogue.SEP.split(b))
 
 CREDIT = re.compile(catalogue.pattern('credit', 'BOOL SGLyricsTimedCredit('), re.I)
@@ -77,13 +80,9 @@ def search(track,provider,strategy=False,reference=None):
               for r in root.get('result',{}).get('songs',[])]
         slack=3
     elif provider=='qqmusic':
-        request={'comm':{'ct':'19','cv':'1859','uin':'0'},'req':{'method':'DoSearchForQQMusicDesktop',
-          'module':'music.search.SearchCgiService','param':{'grp':1,'num_per_page':12,'page_num':1,
-          'query':catalogue.title_core(title)+' '+lead,'search_type':0}}}
-        root=catalogue.fetch('https://u.y.qq.com/cgi-bin/musicu.fcg',request)
-        if root.get('req',{}).get('code')!=0:raise ValueError('QQ search code '+str(root.get('req',{}).get('code')))
+        raw=catalogue.qq_search(catalogue.title_core(title)+' '+lead)
         rows=[dict(id=r.get('id'),title=r.get('title',r.get('songname','')),artist=', '.join(a['name'] for a in r.get('singer',[])),
-                   seconds=r.get('interval',0),aliases=[]) for r in root.get('req',{}).get('data',{}).get('body',{}).get('song',{}).get('list',[])]
+                   seconds=r.get('interval',0),aliases=[]) for r in raw]
         slack=6
     else:
         root=catalogue.get('https://krcs.kugou.com/search',ver=1,man='yes',client='mobi',hash='',album_audio_id='',

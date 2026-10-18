@@ -56,9 +56,10 @@ def summary_payload(d):
     return result
 QQ='https://u.y.qq.com/cgi-bin/musicu.fcg'
 def qq_search(q):
-    d=fetch(QQ,{'comm':{'ct':'19','cv':'1859','uin':'0'},'req':{'method':'DoSearchForQQMusicDesktop','module':'music.search.SearchCgiService','param':{'grp':1,'num_per_page':40,'page_num':1,'query':q,'search_type':0}}})
-    if d.get('req',{}).get('code')!=0:raise ValueError('QQ search rejected '+str(d.get('req',{}).get('code')))
-    return d.get('req',{}).get('data',{}).get('body',{}).get('song',{}).get('list',[])
+    d=get('https://c.y.qq.com/soso/fcgi-bin/client_search_cp',w=q,p=1,n=12,format='json')
+    if d.get('code')!=0:raise ValueError('QQ search rejected '+str(d.get('code')))
+    return [s|{'id':s.get('songid',s.get('id')),'title':s.get('songname',s.get('title',''))}
+            for s in d.get('data',{}).get('song',{}).get('list',[])]
 def qq_lyrics(songid):
     key='music.musichallSong.PlayLyricInfo.GetPlayLyricInfo'
     d=fetch(QQ,{key:{'method':'GetPlayLyricInfo','module':'music.musichallSong.PlayLyricInfo','param':{'crypt':0,'qrc':0,'trans':1,'roma':1,'songID':songid}}})

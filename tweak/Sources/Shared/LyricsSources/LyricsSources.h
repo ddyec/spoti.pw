@@ -1,7 +1,6 @@
 // Where lyrics come from. Every source answers the same question — what are this track's lines, and
 // how finely are they timed — and the chain asks them in the order the Lyrics page puts them in,
-// keeping the best answer rather than the first: a source with only plain text does not shut out a
-// later one that times every word.
+// stopping at the first usable timed answer. Plain text can still be upgraded by a later source.
 //
 // SGTTML.m reads the TTML that Apple Music's own lyrics are written in, which is what BiniLyrics and
 // Unison serve. It is the only shape carrying a second voice and the (oh, aye) sung under a line; every other source times lines, or the words inside them, and nothing more.
@@ -43,6 +42,8 @@ void SGLyricsOpenCredit(SGLyricsCredit *credit);
 @property (nonatomic) BOOL synced;                // the lines have starts of their own
 @property (nonatomic) BOOL wordTimed;             // the words inside them are timed, not estimated
 @property (nonatomic) BOOL metadataVerified;      // exact title, known duration and artist; allow direct use
+@property (nonatomic) BOOL unavailable;           // provider failure/cooldown, never a catalogue miss
+@property (nonatomic) NSTimeInterval retryAfter;
 // Every line as Spotify's lyrics page takes it: ♪ over a break and an empty last line where the
 // singing ends. Starts are in milliseconds, all 0 when not synced. nil when a source times words
 // but has no text for Spotify's own page.
@@ -63,6 +64,7 @@ void SGLyricsOpenCredit(SGLyricsCredit *credit);
 @property (nonatomic, copy) NSString *trackID;   // Spotify's base62 id
 @property (nonatomic, copy) NSString *title, *artist, *album;
 @property (nonatomic) NSInteger seconds;
+@property (nonatomic) NSTimeInterval providerRetryAfter;
 @end
 
 // The lines as Spotify's own page takes them, ♪ over a break and an empty line at the end.

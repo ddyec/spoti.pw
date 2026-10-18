@@ -82,8 +82,7 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     UIView *host = self.superview, *info = sgr_previewInfo;
     if (!host) return;
     BOOL timed = SGRPlayerPreviewAvailable();
-    // Reserve the room as soon as the shared hook publishes lines, even if Spotify never shows its own preview.
-    SGRPlayerSetPreviewRaised(timed);
+    // Spotify owns artwork layout; reading its final frame avoids a second shrink.
     SGRPlayerLyricsChanged();
     CGRect cover = SGRPlayerCoverFrameIn(host);
     CGRect information = sgrShowing(info, host) ? [host convertRect:info.bounds fromView:info] : CGRectZero;

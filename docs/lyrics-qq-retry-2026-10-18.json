@@ -1,0 +1,88 @@
+{
+  "captured_at": "2026-10-18T15:09:40.344135+00:00",
+  "scope": "Fresh public QQ search (12 metadata rows), at most two lyric candidates. NetEase queried solely as diagnostic original-text reference. No iOS or audio verification.",
+  "tracks": [
+    {
+      "title": "Moon Halo",
+      "artist": "HOYO-MiX",
+      "seconds": 204,
+      "qq": {
+        "id": 316639030,
+        "title": "Moon Halo",
+        "artist": "茶理理理子, TetraCalyx, hanser, HOYO-MiX",
+        "seconds": 204,
+        "aliases": [],
+        "original_characters": 1033
+      },
+      "status": "verified",
+      "reference_provider": "netease",
+      "independent_similarity": 0.9623
+    },
+    {
+      "title": "Attention",
+      "artist": "Charlie Puth",
+      "seconds": 209,
+      "qq": {
+        "id": 201818118,
+        "title": "Attention",
+        "artist": "Charlie Puth",
+        "seconds": 211,
+        "aliases": [],
+        "original_characters": 1848
+      },
+      "status": "verified",
+      "reference_provider": "netease",
+      "independent_similarity": 0.9634
+    },
+    {
+      "title": "夏霞",
+      "artist": "Atarayo",
+      "seconds": 229,
+      "qq": {
+        "id": 319904456,
+        "title": "夏霞",
+        "artist": "あたらよ (Atarayo)",
+        "seconds": 228,
+        "aliases": [],
+        "original_characters": 306
+      },
+      "status": "verified",
+      "reference_provider": "netease",
+      "independent_similarity": 0.9901
+    },
+    {
+      "title": "晴天",
+      "artist": "周杰倫",
+      "seconds": 269,
+      "qq": {
+        "id": 97773,
+        "title": "晴天",
+        "artist": "周杰伦",
+        "seconds": 269,
+        "aliases": [],
+        "original_characters": 569
+      },
+      "status": "verified",
+      "reference_provider": "kugou",
+      "independent_similarity": 0.9475
+    },
+    {
+      "title": "Animals",
+      "artist": "Maroon 5",
+      "seconds": 231,
+      "qq": {
+        "id": 102689038,
+        "title": "Animals",
+        "artist": "Maroon 5",
+        "seconds": 229,
+        "aliases": [],
+        "original_characters": 1931
+      },
+      "status": "verified",
+      "reference_provider": "netease",
+      "independent_similarity": 0.9486
+    }
+  ],
+  "meme_rejected": true,
+  "all_passed": true
+}

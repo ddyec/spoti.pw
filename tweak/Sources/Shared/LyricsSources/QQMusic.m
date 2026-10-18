@@ -212,25 +212,31 @@ static void lyricsForSong(NSNumber *songID, void (^done)(SGLyricsResult *)) {
 }
 
 static void searchKeyword(NSString *keyword, void (^done)(NSArray<NSDictionary *> *list)) {
-    if (NSDate.timeIntervalSinceReferenceDate < sg_searchRetryAfter) { done(nil); return; }
-    NSDictionary *request = @{
-        @"comm": @{@"ct": @"19", @"cv": @"1859", @"uin": @"0"},
-        @"req": @{@"method": @"DoSearchForQQMusicDesktop", @"module": @"music.search.SearchCgiService",
-                  @"param": @{@"grp": @1, @"num_per_page": @12, @"page_num": @1,
-                               @"query": keyword, @"search_type": @0}}
-    };
-    SGLyricsPostJSON([NSURL URLWithString:kMusicu], headers(), request, ^(id root) {
-        id value = [root isKindOfClass:NSDictionary.class] ? root[@"req"] : nil;
-        NSDictionary *requestReply = [value isKindOfClass:NSDictionary.class] ? value : nil;
-        NSDictionary *data = [requestReply[@"data"] isKindOfClass:NSDictionary.class] ? requestReply[@"data"] : nil;
-        NSDictionary *body = [data[@"body"] isKindOfClass:NSDictionary.class] ? data[@"body"] : nil;
-        NSDictionary *song = [body[@"song"] isKindOfClass:NSDictionary.class] ? body[@"song"] : nil;
-        NSArray *list = [song[@"list"] isKindOfClass:NSArray.class] ? song[@"list"] : @[];
-        SGLyricsLog(@"qqmusic: search '%@' status %@, %lu candidates", keyword, requestReply[@"code"], (unsigned long)list.count);
-        // A catalogue error is not a miss: changing the keyword just repeats the failure.
-        if (!requestReply || [requestReply[@"code"] integerValue] != 0) {
-            sg_searchRetryAfter = NSDate.timeIntervalSinceReferenceDate + 60;
+    if (NSDate.timeIntervalSinceReferenceDate < sg_searchRetryAfter) {
+        SGLyricsLog(@"qqmusic: search temporarily unavailable, retry in %.0fs", sg_searchRetryAfter - NSDate.timeIntervalSinceReferenceDate);
+        done(nil); return;
+    }
+    // The desktop musicu search returns business error 2001 even for known recordings.
+    // Use the verified public search directly; keep musicu only for QRC/LRC retrieval.
+    NSURL *url = SGLyricsURL(@"https://c.y.qq.com/soso/fcgi-bin/client_search_cp", @{
+        @"w": keyword, @"p": @"1", @"n": @"12", @"format": @"json"});
+    SGLyricsGetJSON(url, headers(), ^(id root) {
+        NSDictionary *reply = [root isKindOfClass:NSDictionary.class] ? root : nil;
+        NSDictionary *data = [reply[@"data"] isKindOfClass:NSDictionary.class] ? reply[@"data"] : nil;
+        NSDictionary *song = [data[@"song"] isKindOfClass:NSDictionary.class] ? data[@"song"] : nil;
+        NSArray *raw = [song[@"list"] isKindOfClass:NSArray.class] ? song[@"list"] : nil;
+        SGLyricsLog(@"qqmusic: public search '%@' status %@, %lu candidates", keyword, reply[@"code"], (unsigned long)raw.count);
+        if (!reply || [reply[@"code"] integerValue] != 0 || !raw) {
+            sg_searchRetryAfter = NSDate.timeIntervalSinceReferenceDate + 15;
             done(nil); return;
+        }
+        NSMutableArray *list = [NSMutableArray array];
+        for (id item in raw) {
+            if (![item isKindOfClass:NSDictionary.class]) continue;
+            NSMutableDictionary *candidate = [item mutableCopy];
+            candidate[@"id"] = item[@"songid"] ?: item[@"id"] ?: NSNull.null;
+            candidate[@"title"] = item[@"songname"] ?: item[@"title"] ?: @"";
+            [list addObject:candidate];
         }
         done(list);
     });
@@ -241,13 +247,14 @@ static void search(SGLyricsQuery *query, BOOL requireTitle, void (^done)(NSArray
     NSString *lead = SGLyricsSearchText(SGLyricsLeadArtist(query.artist) ?: query.artist);
     NSString *title = SGLyricsSearchText(SGLyricsSearchTitle(query.title));
     searchKeyword([NSString stringWithFormat:@"%@ %@", title, lead], ^(NSArray<NSDictionary *> *list) {
-        if (!list) { done(@[]); return; }
+        if (!list) { query.providerRetryAfter = sg_searchRetryAfter; done(@[]); return; }
         for (NSDictionary *song in list) {
             if ([song isKindOfClass:NSDictionary.class] &&
                 eligible(song, query, requireTitle)) { done(list); return; }
         }
         // Some catalogues omit the international title or index only the single's title.
         searchKeyword(title, ^(NSArray<NSDictionary *> *titleList) {
+            if (!titleList) query.providerRetryAfter = sg_searchRetryAfter;
             for (id song in titleList) if ([song isKindOfClass:NSDictionary.class] && eligible(song, query, requireTitle)) { done(titleList); return; }
             done(@[]);
         });
@@ -318,7 +325,11 @@ static void askAt(SGLyricsQuery *query, NSUInteger attempt, void (^done)(SGLyric
     findSongsAt(query, attempt, ^(NSArray<NSDictionary *> *ids) {
         tryLyrics(ids, 0, query, ^(SGLyricsResult *result) {
             if (result) done(result);
-            else done(nil);
+            else if (sg_searchRetryAfter > NSDate.timeIntervalSinceReferenceDate) {
+                SGLyricsResult *failed = [SGLyricsResult new];
+                failed.unavailable = YES; failed.retryAfter = sg_searchRetryAfter;
+                done(failed);
+            } else done(nil);
         });
     });
 }
