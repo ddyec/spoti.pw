@@ -30,7 +30,7 @@ preview = section(root / "tweak/Sources/Native/Player/LyricsPreview.x", "static 
 redesignPreview = section(root / "tweak/Sources/Redesigned/Player/PlayerPreview.x", "static CGRect sgrPreviewFrame(", "static BOOL sgrShowing(")
 prefetchSelection = section(base / "LyricsSources/LyricsSources.m", "static BOOL shouldPublishPrefetchedLines(", "void SGLyricsPrefetch(")
 source = ("#import <Foundation/Foundation.h>\n#import <CoreGraphics/CoreGraphics.h>\n#import <dispatch/dispatch.h>\n#include <stdio.h>\n#include <stdlib.h>\n"
-          + model + query + "BOOL SGLyricsTimedCredit(NSString *);\n"
+          + model + query + "BOOL SGLyricsTimedCredit(NSString *); BOOL SGLyricsContainsHan(NSString *);\n"
           + "BOOL SGLyricsDiagnosticsEnabled(void) { return NO; }\nvoid SGLyricsLog(NSString *format, ...) {}\n"
           + timing + lrc + matching + aliases + qrc + eligibility + qqMetadata + qqEligibility + krc + preview + redesignPreview + prefetchSelection)
 tests = r'''
@@ -73,6 +73,16 @@ int main(void) {
         check(SGLyricsTitleMatches(@"轻涟 La vaguelette", @"La vaguelette"), @"bilingual title");
         check(!SGLyricsTitleMatches(@"轻涟", @"涟"), @"Chinese substring");
         check(!SGLyricsTitleMatches(nil, longTitle), @"missing title");
+        check(!SGLyricsTitleMatches(@"Animals (金坷垃)", @"Animals"), @"meme qualifier is not a Chinese translation");
+        check(!SGLyricsTitleMatches(@"Animals（金坷垃）", @"Animals"), @"full-width qualifier rejected");
+        check(SGLyricsTitleMatches(@"鴻門宴", @"鸿门宴"), @"traditional and simplified song title");
+        check(SGLyricsArtistMatchCount(@"李荣浩", @"李榮浩") == 1, @"traditional and simplified artist");
+        SGLyricsQuery *animal = [SGLyricsQuery new];
+        animal.title = @"Animals"; animal.artist = @"Maroon 5"; animal.seconds = 231;
+        check(SGLyricsMetadataConfident(@"Animals", @"Maroon 5", 231, 6, animal), @"exact metadata allows direct use without extra fallback");
+        check(!SGLyricsMetadataConfident(@"Animals (金坷垃)", @"Maroon 5", 231, 6, animal), @"correct artist and duration cannot validate meme");
+        check(!SGLyricsMetadataConfident(@"Animals", @"Another Artist", 231, 6, animal), @"cover artist cannot validate recording");
+        check(!SGLyricsMetadataConfident(@"Animals", @"Maroon 5", 0, 6, animal), @"missing length is not exact metadata");
         NSString *artists = @"HOYO-MiX, 茶理理, TetraCalyx, Hanser";
         check(SGLyricsArtistMatchCount(@"茶理理, TetraCalyx, Hanser, HOYO-MiX", artists) >= 3,
               @"official multi-artist recording");
@@ -88,6 +98,8 @@ int main(void) {
         NSString *joined = @"[00:08]The paper birds are flying over a quiet morning harbor\n[00:16]We watch the distant lights return";
         NSString *translation = @"[00:08]纸鸟飞过安静的晨港\n[00:16]我们看远方灯火归来";
         check(SGLyricsRecordingMatches(split, SGLyricsLinesFromLRC(joined)), @"split/merged original evidence");
+        check(SGLyricsSourcesAgree(split, SGLyricsLinesFromLRC(joined)), @"independent sources agree despite split lines");
+        check(!SGLyricsSourcesAgree(split, SGLyricsLinesFromLRC(@"[00:08]Completely unrelated lyrics appear in this song\n[00:16]A different recording cannot match")), @"unrelated body fails independent cross-check");
         NSDictionary *map = SGLyricsChineseTranslationMap(split, joined, translation);
         check([map[@0] isEqualToString:@"纸鸟飞过安静的晨港"] && !map[@1], @"whole translation belongs to start of split sentence");
         check([map[@2] isEqualToString:@"我们看远方灯火归来"], @"next sentence unaffected");
@@ -131,6 +143,8 @@ int main(void) {
         check(map.count == 2, @"short translations do not require alias-level evidence");
         check(SGLyricsTimedCredit(@"\u200B作词/作曲：某某"), @"combined role and invisible prefix");
         check(SGLyricsTimedCredit(@"演唱（Vocal）：某某"), @"parenthesized role");
+        check(SGLyricsTimedCredit(@"词Lyricist：某某"), @"bilingual credit without whitespace");
+        check(SGLyricsTimedCredit(@"母带后期处理工程师Mastering Engineer：某某"), @"mastering credit must not look like a lyric");
         NSArray *qrc = linesFromQRC(@"[0,1000]歌手：(0,100)某某(100,100)\n[1000,1000]作词/作曲：(1000,100)某某(1100,100)\n[2000,9000]The (8000,100)paper (8100,100)birds (8200,100)fly(8300,100)");
         check(qrc.count == 1 && ((SGKaraokeLine *)qrc[0]).start == 8000 && ((SGKaraokeLine *)qrc[0]).end == 8400,
               @"credits removed and real word clock controls start/end");

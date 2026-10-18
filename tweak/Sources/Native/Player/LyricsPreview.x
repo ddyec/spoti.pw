@@ -49,7 +49,7 @@ static BOOL showing(UIView *view, UIView *host) {
 @implementation SGNativeLyricsPreview
 - (instancetype)initWithFrame:(CGRect)frame {
     if (!(self = [super initWithFrame:frame])) return nil;
-    self.font = [UIFont systemFontOfSize:16 weight:UIFontWeightSemibold];
+    self.font = [UIFont systemFontOfSize:22 weight:UIFontWeightSemibold];
     self.textColor = UIColor.whiteColor;
     self.textAlignment = NSTextAlignmentCenter;
     self.numberOfLines = 2;

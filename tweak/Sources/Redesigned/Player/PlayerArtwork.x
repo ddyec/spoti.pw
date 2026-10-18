@@ -7,9 +7,8 @@
 // corners and the scale: the tilt view's own transform is left to the tilt Spotify gives it when the
 // cover is inspected. The image clips, so the shadow is a plate of the Kit's behind it.
 //
-// The scale is identity while the player opens or closes: the bar morphs into a 354pt stand-in
-// (NowPlaying_ECMKit.MaskView, 01.txt:86) and the cover under it has to match where it lands. Once
-// the transition is over a paused cover springs down.
+// A paused cover stays shrunk while the player opens or closes: the morph (PlayerMorph.x) flies to the
+// frame the cover is seen at, so growing it for the transition only made it jump afterwards.
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Player.h"
@@ -23,10 +22,11 @@ static NSHashTable<UIView *> *sg_tilts;
 // The cover of each tilt view once found. A frame Spotify sets on a scaled view becomes its scaled
 // size, leaving bounds that no longer match the tilt view's, so the cover is not looked for by size again.
 static NSMapTable<UIView *, UIView *> *sg_covers;
+static BOOL sg_previewRaised;
 
 static CGFloat currentScale(void) {
     SPTPlayerState *state = SGPlayerState();
-    if (!state.isPaused || SGRPlayerIsTransitioning()) return 1;
+    if (!state.isPaused) return 1;
     return SGRReduceMotion() ? kPausedScaleReduceMotion : kPausedScale;
 }
 
@@ -56,7 +56,8 @@ static void scaleCover(UIView *tilt, CGFloat scale) {
     UIView *cover = coverIn(tilt);
     if (!cover) return;
     SGRShadowPlate *plate = SGRShadowPlateIn(tilt, &kPlateKey);
-    CGAffineTransform transform = CGAffineTransformMakeScale(scale, scale);
+    CGFloat previewScale = sg_previewRaised ? 0.86 : 1;
+    CGAffineTransform transform = CGAffineTransformMake(scale * previewScale, 0, 0, scale * previewScale, 0, sg_previewRaised ? -24 : 0);
     cover.transform = transform;
     plate.transform = transform;
 }
@@ -101,22 +102,71 @@ CGRect SGRPlayerArtworkAreaIn(UIView *host) {
     return CGRectNull;
 }
 
+#pragma mark - hidden
+
 // The cover hidden for a stand-in, so the same one comes back if the list moved on meanwhile.
-static __weak UIView *sg_hiddenCover, *sg_hiddenPlate;
+static __weak UIView *sg_hiddenCover;
+// The tilt views whose cover this file took away, the only ones it gives back: any alpha Spotify sets on
+// a cover itself is left alone.
+static NSHashTable<UIView *> *sg_gone;
+
+// With a clip over the field no cover shows, in any cell (PlayerAnimated.x). Only the cover and its plate
+// go, never the list or anything over it: UIKit hit tests nothing under alpha 0.01, and a swipe on the
+// list is what skips. The tilt view is the element VoiceOver names the cover by.
+static void showCover(UIView *tilt) {
+    UIView *cover = coverIn(tilt);
+    if (!cover) return;
+    BOOL clip = SGRPlayerAnimatedShowing(NULL, NULL), gone = clip || cover == sg_hiddenCover;
+    if (gone) [sg_gone addObject:tilt];
+    else if ([sg_gone containsObject:tilt]) [sg_gone removeObject:tilt];
+    else return;
+    UIView *plate = SGRShadowPlateIn(tilt, &kPlateKey);
+    CGFloat alpha = gone ? 0 : 1;
+    if (cover.alpha != alpha) cover.alpha = alpha;
+    if (plate.alpha != alpha) plate.alpha = alpha;
+    if (tilt.accessibilityElementsHidden != clip) tilt.accessibilityElementsHidden = clip;
+}
+
+static void fadeCovers(NSArray<UIView *> *tilts, NSTimeInterval duration) {
+    void (^apply)(void) = ^{
+        for (UIView *tilt in tilts) showCover(tilt);
+    };
+    if (duration <= 0) {
+        [UIView performWithoutAnimation:apply];
+        return;
+    }
+    [UIView animateWithDuration:duration delay:0
+                        options:UIViewAnimationOptionCurveEaseInOut | UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionAllowUserInteraction
+                     animations:apply completion:nil];
+}
+
+void SGRPlayerCoversFollowClip(NSTimeInterval duration) {
+    fadeCovers(sg_tilts.allObjects, duration);
+}
 
 void SGRPlayerSetCoverHidden(BOOL hidden) {
-    sg_hiddenCover.alpha = 1;
-    sg_hiddenPlate.alpha = 1;
-    sg_hiddenCover = sg_hiddenPlate = nil;
+    UIView *was = sg_hiddenCover;
+    sg_hiddenCover = nil;
+    if (was) {
+        // Given back halfway through a clip's fade, it joins the fade where the clip has got to.
+        CGFloat shown = 0;
+        NSTimeInterval left = 0;
+        SGRPlayerAnimatedShowing(&shown, &left);
+        UIView *tilt = was.superview, *plate = SGRShadowPlateIn(tilt, &kPlateKey);
+        if (left > 0) {
+            [UIView performWithoutAnimation:^{
+                was.alpha = 1 - shown;
+                plate.alpha = 1 - shown;
+            }];
+        }
+        if (tilt) fadeCovers(@[tilt], left);
+    }
     if (!hidden) return;
     UIView *tilt = showingTilt();
     UIView *cover = coverIn(tilt);
     if (!cover) return;
-    UIView *plate = SGRShadowPlateIn(tilt, &kPlateKey);
-    cover.alpha = 0;
-    plate.alpha = 0;
     sg_hiddenCover = cover;
-    sg_hiddenPlate = plate;
+    [UIView performWithoutAnimation:^{ showCover(tilt); }];
 }
 
 #pragma mark - the paused shrink
@@ -129,6 +179,12 @@ static void scaleEveryCover(BOOL animated) {
     };
     if (animated) SGRAnimate(SGRMotionLayout, apply, nil);
     else apply();
+}
+
+void SGRPlayerSetPreviewRaised(BOOL raised) {
+    if (raised == sg_previewRaised) return;
+    sg_previewRaised = raised;
+    scaleEveryCover(!UIAccessibilityIsReduceMotionEnabled());
 }
 
 %hook _TtC35CreativeWorkCommons_CoverArtTiltKit16CoverArtTiltView
@@ -153,6 +209,8 @@ static void scaleEveryCover(BOOL animated) {
     plate.center = cover.center;
     // The same value an animation in flight is heading to, so a layout pass never cuts one short.
     scaleCover(tilt, currentScale());
+    // A cell laid out later, or reused, takes the rule as it stands.
+    [UIView performWithoutAnimation:^{ showCover(tilt); }];
 
     static dispatch_once_t once;
     dispatch_once(&once, ^{ SGLog(@"redesign player: cover %@ rounded %.0f with a shadow plate, scale %.2f", NSStringFromClass(cover.class), SGRRadiusArtwork, currentScale()); });
@@ -202,6 +260,7 @@ static SGRPlayerArtworkWatcher *sg_artworkWatcher;
     %init;
     sg_tilts = [NSHashTable weakObjectsHashTable];
     sg_covers = [NSMapTable weakToWeakObjectsMapTable];
+    sg_gone = [NSHashTable weakObjectsHashTable];
     sg_artworkWatcher = [SGRPlayerArtworkWatcher new];
     SGAddPlayerStateObserver(sg_artworkWatcher);
     SGRObservePlayerTransition(sg_artworkWatcher, ^(id owner) {

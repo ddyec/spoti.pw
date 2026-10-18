@@ -24,7 +24,9 @@ jobs:
           xcode-version: latest-stable
 
       - name: Check lyrics recording identity
-        run: python3 scripts/test-lyrics-identity.py
+        run: |
+          python3 scripts/test-lyrics-identity.py
+          python3 scripts/test-lyrics-requests.py
 
       - uses: actions/checkout@v5
         with:
@@ -47,6 +49,6 @@ jobs:
 
       - uses: actions/upload-artifact@v5
         with:
-          name: spoti-issue-144-async-translation-ipa
+          name: spoti-beta-selective-lyrics-ipa
           path: out/*.ipa
           if-no-files-found: error

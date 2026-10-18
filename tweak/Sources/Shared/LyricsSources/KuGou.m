@@ -145,16 +145,19 @@ static NSArray<SGKaraokeLine *> *linesFromKRC(NSString *krc) {
 
 static void deliverCandidate(NSDictionary *song, SGLyricsQuery *query, SGLyricsResult *result, void (^done)(SGLyricsResult *)) {
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
-        BOOL verified = (SGLyricsTitleMatches(song[@"song"], query.title) && SGLyricsArtistMatchCount(song[@"singer"], query.artist)) || SGLyricsRecordingMatches(query.referenceLines, result.karaokeLines);
+        BOOL verified = result.karaokeLines.count && (query.referenceLines.count
+            ? SGLyricsRecordingMatches(query.referenceLines, result.karaokeLines)
+            : (SGLyricsTitleMatches(song[@"song"], query.title) && SGLyricsArtistMatchCount(song[@"singer"], query.artist)));
         dispatch_async(dispatch_get_main_queue(), ^{
             SGLyricsLog(@"kugou: candidate %@ original-text evidence %@", song[@"id"], verified ? @"accepted" : @"rejected");
+            result.metadataVerified = SGLyricsMetadataConfident(song[@"song"], song[@"singer"], [song[@"duration"] integerValue] / 1000, 8, query);
             done(verified ? result : nil);
         });
     });
 }
 
 static void tryCandidates(NSArray<NSDictionary *> *songs, NSUInteger index, SGLyricsQuery *query, void (^done)(SGLyricsResult *)) {
-    if (index >= MIN(songs.count, 3)) { done(nil); return; }
+    if (index >= MIN(songs.count, 2)) { done(nil); return; }
     NSDictionary *song = songs[index];
     NSString *songID = [song[@"id"] description];
     NSURL *url = SGLyricsURL(@"https://lyrics.kugou.com/download", @{
@@ -216,7 +219,7 @@ static void tryCandidates(NSArray<NSDictionary *> *songs, NSUInteger index, SGLy
 static void searchAt(SGLyricsQuery *query, NSUInteger attempt, void (^done)(SGLyricsResult *)) {
     if (!query.title.length || !query.artist.length) { done(nil); return; }
     NSArray *artists = SGLyricsSearchArtists(query.artist);
-    if (attempt && (!query.referenceLines.count || attempt > artists.count)) { done(nil); return; }
+    if (attempt) { done(nil); return; }
     NSString *keyword = attempt ? artists[attempt - 1] : [NSString stringWithFormat:@"%@ - %@", SGLyricsLeadArtist(query.artist) ?: query.artist, SGLyricsSearchTitle(query.title)];
     NSURL *url = SGLyricsURL(@"https://krcs.kugou.com/search", @{
         @"ver": @"1", @"man": @"yes", @"client": @"mobi", @"hash": @"", @"album_audio_id": @"",
@@ -241,7 +244,6 @@ static void searchAt(SGLyricsQuery *query, NSUInteger attempt, void (^done)(SGLy
               (unsigned long)candidates.count, (unsigned long)fitting.count);
         tryCandidates(fitting, 0, query, ^(SGLyricsResult *result) {
             if (result) done(result);
-            else if (query.referenceLines.count && attempt < artists.count) searchAt(query, attempt + 1, done);
             else done(nil);
         });
     });

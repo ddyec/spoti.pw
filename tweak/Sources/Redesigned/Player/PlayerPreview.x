@@ -6,6 +6,7 @@
 #import "Shared/LyricsSources/LyricsDiagnostics.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Player.h"
+#import "Redesigned/Lyrics/SGRKaraokeView.h"
 #include <math.h>
 
 static char kSGRPreviewKey;
@@ -37,122 +38,92 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     return YES;
 }
 
-@interface SGRPlayerPreview : UILabel
+@interface SGRPlayerPreview : UIView
 @property (nonatomic, strong) NSTimer *timer;
-@property (nonatomic, copy) NSString *lastDiagnostic;
-@property (nonatomic, copy) NSString *shownOriginal, *shownTranslation;
-@property (nonatomic) CGSize measuredSize;
+@property (nonatomic, strong) CADisplayLink *link;
+@property (nonatomic, strong) UIScrollView *scroll;
+@property (nonatomic, strong) UIView *lineView;
+@property (nonatomic, strong) SGKaraokeLine *line;
+@property (nonatomic, copy) NSString *translation;
+@property (nonatomic) CGSize measured;
 - (void)refresh;
 @end
 
 @implementation SGRPlayerPreview
 - (instancetype)initWithFrame:(CGRect)frame {
     if (!(self = [super initWithFrame:frame])) return nil;
-    self.font = [UIFont systemFontOfSize:16 weight:UIFontWeightSemibold];
-    self.textColor = UIColor.whiteColor;
-    self.textAlignment = NSTextAlignmentCenter;
-    self.numberOfLines = 0;
-    self.lineBreakMode = NSLineBreakByWordWrapping;
     self.clipsToBounds = YES;
-    self.userInteractionEnabled = NO;
     self.alpha = 0;
+    _scroll = [[UIScrollView alloc] initWithFrame:self.bounds];
+    _scroll.showsVerticalScrollIndicator = NO;
+    _scroll.alwaysBounceVertical = NO;
+    [self addSubview:_scroll];
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(refresh) name:SGKaraokeLinesDidChangeNotification object:nil];
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(refresh) name:SGLyricsTranslationUpdatedNotification object:nil];
     return self;
 }
+- (void)dealloc { [NSNotificationCenter.defaultCenter removeObserver:self]; }
 - (void)didMoveToWindow {
     [super didMoveToWindow];
-    [self.timer invalidate];
-    self.timer = nil;
+    [self.timer invalidate]; self.timer = nil;
+    [self.link invalidate]; self.link = nil;
     if (!self.window) return;
     __weak SGRPlayerPreview *weakSelf = self;
-    self.timer = [NSTimer timerWithTimeInterval:0.25 repeats:YES block:^(NSTimer *timer) {
-        [weakSelf refresh];
-    }];
+    self.timer = [NSTimer timerWithTimeInterval:0.25 repeats:YES block:^(NSTimer *timer) { [weakSelf refresh]; }];
     [NSRunLoop.mainRunLoop addTimer:self.timer forMode:NSRunLoopCommonModes];
     [self refresh];
 }
-- (void)showOriginal:(NSString *)original translation:(NSString *)translation {
-    original = original ?: @"";
-    translation = translation ?: @"";
-    CGSize size = self.bounds.size;
-    if ([self.shownOriginal isEqualToString:original] &&
-        [self.shownTranslation isEqualToString:translation] && CGSizeEqualToSize(self.measuredSize, size)) return;
-    self.shownOriginal = original;
-    self.shownTranslation = translation;
-    self.measuredSize = size;
-    if (!original.length) { self.attributedText = nil; return; }
-    NSMutableParagraphStyle *paragraph = [NSMutableParagraphStyle new];
-    paragraph.alignment = NSTextAlignmentCenter;
-    paragraph.lineBreakMode = NSLineBreakByWordWrapping;
-    paragraph.lineSpacing = 2;
-    // Measure only when the sentence, late-arriving translation or available room changes.
-    // Both texts wrap naturally; shrink together in a cramped gap without moving the cover.
-    for (CGFloat fontSize = 16; fontSize >= 10; fontSize -= 1) {
-        NSMutableAttributedString *content = [[NSMutableAttributedString alloc] initWithString:original attributes:@{
-            NSFontAttributeName: [UIFont systemFontOfSize:fontSize weight:UIFontWeightSemibold],
-            NSForegroundColorAttributeName: UIColor.whiteColor,
-            NSParagraphStyleAttributeName: paragraph,
-        }];
-        if (translation.length && ![translation isEqualToString:original]) {
-            [content appendAttributedString:[[NSAttributedString alloc] initWithString:[@"\n" stringByAppendingString:translation] attributes:@{
-                NSFontAttributeName: [UIFont systemFontOfSize:MAX(9, fontSize - 3) weight:UIFontWeightRegular],
-                NSForegroundColorAttributeName: [UIColor.whiteColor colorWithAlphaComponent:0.75],
-                NSParagraphStyleAttributeName: paragraph,
-            }]];
-        }
-        CGRect measured = [content boundingRectWithSize:CGSizeMake(MAX(1, size.width), CGFLOAT_MAX)
-            options:NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesFontLeading context:nil];
-        if (ceil(measured.size.height) <= size.height || fontSize == 10) {
-            self.attributedText = content;
-            break;
-        }
-    }
+- (void)animateText {
+    if (UIApplication.sharedApplication.applicationState != UIApplicationStateActive || SGRPlayerIsTransitioning()) return;
+    SGRKaraokePreviewShowTime(self.lineView, SGKaraokePositionMs());
 }
 - (void)refresh {
-    if (UIApplication.sharedApplication.applicationState != UIApplicationStateActive) return;
+    if (!NSThread.isMainThread) { dispatch_async(dispatch_get_main_queue(), ^{ [self refresh]; }); return; }
     UIView *host = self.superview, *info = sgr_previewInfo;
     if (!host) return;
-    // Sources can finish after the footer's track-change grace period. Refresh its
-    // availability from the same display cache; this call exits when nothing changed.
+    BOOL timed = SGRPlayerPreviewAvailable();
+    // Reserve the room as soon as the shared hook publishes lines, even if Spotify never shows its own preview.
+    SGRPlayerSetPreviewRaised(timed);
     SGRPlayerLyricsChanged();
-    CGRect coverRect = SGRPlayerCoverFrameIn(host);
-    BOOL geometry = !CGRectIsNull(coverRect) && sgrShowing(info, host);
-    CGRect infoRect = geometry ? [host convertRect:info.bounds fromView:info] : CGRectZero;
-    CGRect frame = geometry ? sgrPreviewFrame(coverRect, infoRect, host.bounds) : CGRectNull;
-    geometry = !CGRectIsNull(frame);
-    if (geometry) {
-        if (!CGRectEqualToRect(frame, self.frame)) self.frame = frame;
-    }
-    NSString *track = SGKaraokePlayingTrack();
-    NSArray<SGKaraokeLine *> *lines = SGKaraokeLinesForTrack(track);
-    NSInteger ms = SGKaraokePositionMs(), index = -1;
-    NSString *text = nil, *translation = nil;
-    BOOL available = SGRPlayerPreviewAvailable() && !SGRPlayerLyricsOpen() && !SGRPlayerIsTransitioning();
-    if (available && ms >= 0) {
-        index = SGKaraokeLeadLine(lines, ms);
-        if (index >= 0) {
-            SGKaraokeLine *line = lines[index];
-            if (ms <= SGKaraokeSungEnd(line) + 4000) {
-                text = SGKaraokeLineText(line);
-                translation = line.translation;
-            }
+    CGRect cover = SGRPlayerCoverFrameIn(host);
+    CGRect information = sgrShowing(info, host) ? [host convertRect:info.bounds fromView:info] : CGRectZero;
+    CGRect frame = CGRectIsNull(cover) ? CGRectNull : sgrPreviewFrame(cover, information, host.bounds);
+    CGFloat clip = 0; SGRPlayerAnimatedShowing(&clip, NULL);
+    NSInteger ms = SGKaraokePositionMs();
+    NSArray *lines = SGKaraokeLinesForTrack(SGKaraokePlayingTrack());
+    NSInteger index = timed && ms >= 0 ? SGKaraokeLeadLine(lines, ms) : -1;
+    SGKaraokeLine *line = index >= 0 ? lines[index] : nil;
+    BOOL visible = timed && line && ms <= SGKaraokeSungEnd(line) + 4000 && !CGRectIsNull(frame) &&
+        !SGRPlayerLyricsOpen() && !SGRPlayerIsTransitioning() && clip < 0.01 &&
+        UIApplication.sharedApplication.applicationState == UIApplicationStateActive;
+    self.alpha = visible ? 1 : 0;
+    if (!visible) { [self.link invalidate]; self.link = nil; return; }
+    self.frame = frame;
+    self.scroll.frame = self.bounds;
+    if (line != self.line || !CGSizeEqualToSize(self.measured, self.bounds.size) ||
+        ![(line.translation ?: @"") isEqualToString:(self.translation ?: @"")]) {
+        BOOL changesLine = self.line && line != self.line;
+        [self.lineView removeFromSuperview];
+        self.line = line; self.translation = line.translation; self.measured = self.bounds.size;
+        self.lineView = SGRKaraokePreviewLine(line, self.bounds.size.width, self.bounds.size.height);
+        self.lineView.frame = CGRectMake(0, MAX(0, (self.bounds.size.height - self.lineView.bounds.size.height) / 2),
+            self.bounds.size.width, self.lineView.bounds.size.height);
+        [self.scroll addSubview:self.lineView];
+        self.scroll.contentSize = CGSizeMake(self.bounds.size.width, MAX(self.bounds.size.height, self.lineView.bounds.size.height));
+        self.scroll.contentOffset = CGPointZero;
+        if (changesLine && !UIAccessibilityIsReduceMotionEnabled()) {
+            CATransition *fade = [CATransition animation]; fade.type = kCATransitionFade; fade.duration = 0.25;
+            [self.scroll.layer addAnimation:fade forKey:@"lyricsLine"];
         }
     }
-    [self showOriginal:text translation:translation];
-    self.alpha = geometry && available && text.length ? 0.85 : 0;
-    if (SGLyricsDiagnosticsEnabled()) {
-        NSString *reason = !SGEnabled(SGRKeyPlayerLyricsPreview) ? @"disabledBySetting" :
-            (SGRPlayerLyricsOpen() ? @"fullLyricsOpen" : (!geometry ? @"noGeometry" :
-            (!available ? @"noTimedLyricsOrTransition" : (!text.length ? @"breakOrUnknownClock" : @"showing"))));
-        NSString *key = [NSString stringWithFormat:@"%@:%@", track, reason];
-        if (![self.lastDiagnostic isEqualToString:key]) {
-            self.lastDiagnostic = key;
-            SGLyricsLog(@"redesignPreview track=%@ state=%@ lines=%lu ms=%ld index=%ld cover=%@ info=%@ frame=%@",
-                track, reason, (unsigned long)lines.count, (long)ms, (long)index,
-                NSStringFromCGRect(coverRect), NSStringFromCGRect(infoRect), NSStringFromCGRect(self.frame));
-        }
-    } else self.lastDiagnostic = nil;
+    [self animateText];
+    if (!self.link) {
+        self.link = [CADisplayLink displayLinkWithTarget:self selector:@selector(animateText)];
+        CGFloat hz = self.window.screen.maximumFramesPerSecond;
+        self.link.preferredFrameRateRange = CAFrameRateRangeMake(MIN(30, hz), hz, hz);
+        [self.link addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
+    }
 }
-- (void)dealloc { [_timer invalidate]; }
 @end
 
 static void updatePreview(UIView *host) {

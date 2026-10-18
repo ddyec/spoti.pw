@@ -4,6 +4,7 @@
 static NSString *comparable(NSString *text) {
     if (![text isKindOfClass:NSString.class]) return @"";
     NSString *value = [[text precomposedStringWithCompatibilityMapping] lowercaseString];
+    if (SGLyricsContainsHan(value)) value = [value stringByApplyingTransform:@"Traditional-Simplified" reverse:NO];
     NSMutableString *out = [NSMutableString string];
     NSCharacterSet *letters = NSCharacterSet.alphanumericCharacterSet;
     for (NSUInteger i = 0; i < value.length; i++) {
@@ -94,7 +95,7 @@ BOOL SGLyricsTimedCredit(NSString *text) {
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         credit = [NSRegularExpression regularExpressionWithPattern:
-            @"^\\s*(?:作词|作曲|编曲|演唱|原唱|歌手|词曲|混音(?:师)?|录音(?:师)?|母带(?:处理工程师)?|制作(?:人)?|出品|策划|监制|发行|合声|和声|人声|吉他|原声吉他|电吉他|贝斯|貝斯|鼓|弦乐|弦樂|钢琴|鋼琴|乐队|音乐制作|词|曲|Lyrics?(?: by)?|Composer|Composed by|Arranged by|Produced by|Vocals?(?:ist)?|Singer|Artist|OP|SP)(?:\\s*[/／&、]\\s*(?:作词|作曲|编曲|词|曲))?(?:\\s*[（(][^）)]{0,40}[）)])?(?:\\s+[A-Za-z][A-Za-z&/ ]{0,30})?\\s*[:：]"
+            @"^\\s*(?:作词|作曲|编曲|演唱|原唱|歌手|词曲|混音(?:师)?|录音(?:师)?|母带(?:处理工程师)?|制作(?:人)?|出品|策划|监制|发行|合声|和声|人声|吉他|原声吉他|电吉他|贝斯|貝斯|鼓|弦乐|弦樂|钢琴|鋼琴|乐队|音乐制作|和音|录音工作室|混音工作室|音乐制作助理|母带后期(?:制作人|处理工程师|处理录音室)|词|曲|Lyrics?(?: by)?|Composer|Composed by|Arranged by|Produced by|Vocals?(?:ist)?|Singer|Artist|OP|SP)(?:\\s*[/／&、]\\s*(?:作词|作曲|编曲|词|曲))?(?:\\s*[（(][^）)]{0,40}[）)])?(?:\\s*[A-Za-z][A-Za-z&/ ]{0,30})?\\s*[:：]"
             options:NSRegularExpressionCaseInsensitive error:nil];
     });
     return [credit firstMatchInString:text options:0 range:NSMakeRange(0, text.length)] != nil;
@@ -143,6 +144,12 @@ BOOL SGLyricsTitleMatches(NSString *candidate, NSString *wanted) {
     NSString *a = comparable(SGLyricsSearchTitle(candidate)), *b = comparable(SGLyricsSearchTitle(wanted));
     if (!a.length || !b.length) return NO;
     if ([a isEqualToString:b]) return YES;
+    // Parenthesised qualifiers describe a version, meme or cover, not a title alias.
+    // Do not accept Animals (金坷垃) as Animals, even if its artist and duration match.
+    NSCharacterSet *brackets = [NSCharacterSet characterSetWithCharactersInString:@"()[]（）【】"];
+    for (NSString *title in @[SGLyricsSearchTitle(candidate), SGLyricsSearchTitle(wanted)]) {
+        if ([title rangeOfCharacterFromSet:brackets].location != NSNotFound) return NO;
+    }
     // Do not turn "Love" into "Love Story", or a studio recording into a live/remix.
     // A translated prefix/suffix is allowed only when the rest is entirely Han text.
     NSString *longer = a.length > b.length ? a : b, *shorter = a.length > b.length ? b : a;
@@ -285,6 +292,18 @@ NSUInteger SGLyricsOriginalOverlap(NSArray<SGKaraokeLine *> *target, NSString *o
     for (NSDictionary *group in alignedGroups(target, SGLyricsLinesFromLRC(originalLRC)))
         count += MAX([group[@"sources"] unsignedIntegerValue], [group[@"targets"] unsignedIntegerValue]);
     return count;
+}
+
+BOOL SGLyricsSourcesAgree(NSArray<SGKaraokeLine *> *first, NSArray<SGKaraokeLine *> *second) {
+    // Require coverage in both directions: a short matching chorus is not a whole song.
+    return SGLyricsRecordingMatches(first, second) && SGLyricsRecordingMatches(second, first);
+}
+
+BOOL SGLyricsMetadataConfident(NSString *title, NSString *artist, NSInteger seconds, NSInteger slack, SGLyricsQuery *query) {
+    NSString *name = comparable(SGLyricsSearchTitle(title));
+    return name.length && [name isEqualToString:comparable(SGLyricsSearchTitle(query.title))] &&
+        SGLyricsArtistMatchCount(artist, query.artist) > 0 && seconds > 0 && query.seconds > 0 &&
+        labs(seconds - query.seconds) <= slack;
 }
 
 // Translation LRCs sometimes shift every timestamp by the same amount. Estimate that shift
