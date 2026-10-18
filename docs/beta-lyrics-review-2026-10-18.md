@@ -163,7 +163,13 @@ NetEase's own request function was also found to bypass the shared request cache
 It now goes through `SGLyricsReadJSON`, retaining its 3s timeout, with sorted URL
 parameters so lyric and translation consumers can actually reuse the same request.
 
-The Action checks the final audit gate, compiles/runs both Objective-C regressions,
-and reads the IPA's real CFBundleShortVersionString before building. It must stop
+The existing Action calls the identity script, which checks the final audit gate
+and compiles/runs both Objective-C regressions. The existing pipeline reads the
+IPA's real CFBundleShortVersionString before building and now must stop
 if that version differs from 9.1.78. A successful Action still requires phone
 acceptance of the cover/preview behavior described above.
+
+The current GitHub OAuth credential cannot update workflow files. This branch
+therefore retains the fork's existing `.github/workflows` files unchanged from
+the earlier test branch; the new gates live in the scripts those workflows already
+invoke. No credential scope expansion is needed.

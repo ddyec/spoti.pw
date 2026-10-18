@@ -24,10 +24,7 @@ jobs:
           xcode-version: latest-stable
 
       - name: Check lyrics recording identity
-        run: |
-          python3 -c "import json; r=json.load(open('docs/lyrics-live-audit-round2-2026-10-18.json')); assert r['all_passed'] and r['reused_results']==0; print('Fresh multilingual audit gate passed')"
-          python3 scripts/test-lyrics-identity.py
-          python3 scripts/test-lyrics-requests.py
+        run: python3 scripts/test-lyrics-identity.py
 
       - uses: actions/checkout@v5
         with:
@@ -46,23 +43,10 @@ jobs:
           curl -fsSL "${{ inputs.ipa_url }}" -o ipa/spotify.ipa
           case "$(file --mime-type -b ipa/spotify.ipa)" in application/zip|application/x-ios-app) ;; *) echo "::error::Not an IPA"; exit 1 ;; esac
 
-      - name: Verify Spotify version
-        run: |
-          python3 - <<'PY'
-          import plistlib, re, zipfile
-          with zipfile.ZipFile('ipa/spotify.ipa') as archive:
-              names = [n for n in archive.namelist() if re.fullmatch(r'Payload/[^/]+\.app/Info\.plist', n)]
-              assert len(names) == 1, 'Ambiguous app bundle in IPA'
-              info = plistlib.loads(archive.read(names[0]))
-          version = info.get('CFBundleShortVersionString')
-          print('Spotify IPA version:', version)
-          assert version == '9.1.78', 'Spotify version changed: stop without building'
-          PY
-
       - run: make release
 
       - uses: actions/upload-artifact@v5
         with:
-          name: spoti-beta-selective-lyrics-ipa
+          name: spoti-issue-144-async-translation-ipa
           path: out/*.ipa
           if-no-files-found: error

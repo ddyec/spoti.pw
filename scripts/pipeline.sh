@@ -58,6 +58,10 @@ APP_DIR="$(unzip -Z1 "$IN" | grep -oE '^Payload/[^/]+\.app/' | sort -u | head -1
 [ -n "$APP_DIR" ] || { echo "no Payload/*.app in $IN" >&2; exit 1; }
 SPOTIFY_VERSION="$(unzip -p "$IN" "${APP_DIR}Info.plist" > "$ROOT/out/.info.plist" && plutil -extract CFBundleShortVersionString raw -o - "$ROOT/out/.info.plist")"
 rm -f "$ROOT/out/.info.plist"
+if [ "$SPOTIFY_VERSION" != "9.1.78" ]; then
+  echo "Spotify version changed: expected 9.1.78, got $SPOTIFY_VERSION; stopping without building" >&2
+  exit 2
+fi
 # The name carries the mod's version, not Spotify's: it is the one the About page shows and the one
 # worth telling builds apart by. version.txt is read the way tweak/Makefile reads it, so a build from
 # a fork left behind by a release is named for the version it really is.

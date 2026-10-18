@@ -5,8 +5,13 @@ Extract Foundation-only code, avoiding UIKit and duplicating no matching logic.
 from pathlib import Path
 import subprocess
 import tempfile
+import json
+import sys
 
 root = Path(__file__).resolve().parents[1]
+audit = json.loads((root / 'docs/lyrics-live-audit-round2-2026-10-18.json').read_text(encoding='utf-8'))
+assert audit['all_passed'] and audit['reused_results'] == 0, 'Fresh multilingual audit did not pass'
+print('Fresh multilingual audit gate passed', flush=True)
 base = root / "tweak/Sources/Shared"
 def section(path, begin, end):
     text = path.read_text(encoding="utf-8")
@@ -198,3 +203,5 @@ with tempfile.TemporaryDirectory(prefix="lyrics-identity-") as directory:
     subprocess.run(["xcrun", "clang", "-fobjc-arc", "-fblocks", "-framework", "Foundation", "-framework", "CoreGraphics",
                     str(path / "identity.m"), "-o", str(path / "identity")], check=True)
     subprocess.run([str(path / "identity")], check=True)
+
+subprocess.run([sys.executable, str(root / 'scripts/test-lyrics-requests.py')], check=True)
