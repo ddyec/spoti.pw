@@ -129,6 +129,7 @@ void SGLyricsMigrateLegacyKeys(void);
 // The requests the sources share; each calls back on the main queue, with nil when it failed.
 NSURL *SGLyricsURL(NSString *base, NSDictionary<NSString *, NSString *> *query);
 void SGLyricsGetJSON(NSURL *url, NSDictionary<NSString *, NSString *> *headers, void (^done)(id root));
+void SGLyricsReadJSON(NSURLRequest *request, void (^done)(id root)); // shared cache, caller's timeout retained
 void SGLyricsGetText(NSURL *url, void (^done)(NSString *text));
 // For a source that reads the status and headers too: the body is read whatever the status.
 void SGLyricsGetJSONReply(NSURL *url, NSDictionary<NSString *, NSString *> *headers,

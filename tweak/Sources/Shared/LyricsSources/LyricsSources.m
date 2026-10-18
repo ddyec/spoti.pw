@@ -60,9 +60,8 @@ void SGLyricsNoteReply(NSURLResponse *response, NSError *error) {
 NSURL *SGLyricsURL(NSString *base, NSDictionary<NSString *, NSString *> *query) {
     NSURLComponents *url = [NSURLComponents componentsWithString:base];
     NSMutableArray<NSURLQueryItem *> *items = [NSMutableArray array];
-    [query enumerateKeysAndObjectsUsingBlock:^(NSString *name, NSString *value, BOOL *stop) {
-        [items addObject:[NSURLQueryItem queryItemWithName:name value:value]];
-    }];
+    for (NSString *name in [[query allKeys] sortedArrayUsingSelector:@selector(compare:)])
+        [items addObject:[NSURLQueryItem queryItemWithName:name value:query[name]]];
     url.queryItems = items;
     return url.URL;
 }
@@ -139,7 +138,11 @@ static id jsonIn(NSData *body) {
 }
 
 void SGLyricsGetJSON(NSURL *url, NSDictionary<NSString *, NSString *> *headers, void (^done)(id root)) {
-    send(requestFor(url, headers), ^(NSData *body) {
+    SGLyricsReadJSON(requestFor(url, headers), done);
+}
+
+void SGLyricsReadJSON(NSURLRequest *request, void (^done)(id root)) {
+    send(request, ^(NSData *body) {
         id root = jsonIn(body);
         dispatch_async(dispatch_get_main_queue(), ^{ done(root); });
     });

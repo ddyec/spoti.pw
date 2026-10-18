@@ -28,20 +28,10 @@ static BOOL titleMatches(NSDictionary *song, SGLyricsQuery *query) {
 }
 
 static void get(NSString *path, NSDictionary<NSString *, NSString *> *query, void (^done)(NSDictionary *root)) {
-    NSURLComponents *url = [NSURLComponents componentsWithString:[@"https://music.163.com/api/" stringByAppendingString:path]];
-    NSMutableArray<NSURLQueryItem *> *items = [NSMutableArray array];
-    [query enumerateKeysAndObjectsUsingBlock:^(NSString *name, NSString *value, BOOL *stop) {
-        [items addObject:[NSURLQueryItem queryItemWithName:name value:value]];
-    }];
-    url.queryItems = items;
-    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url.URL cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:kTimeout];
+    NSURL *url = SGLyricsURL([@"https://music.163.com/api/" stringByAppendingString:path], query);
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:kTimeout];
     [request setValue:@"https://music.163.com" forHTTPHeaderField:@"Referer"];
-    [[NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-        SGLyricsNoteReply(response, error);
-        id root = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
-        if (error || !root) SGLyricsLog(@"netease: %@ failed: status %ld, error %@/%ld", path, (long)[(NSHTTPURLResponse *)response statusCode], error.domain ?: @"none", (long)error.code);
-        dispatch_async(dispatch_get_main_queue(), ^{ done([root isKindOfClass:NSDictionary.class] ? root : nil); });
-    }] resume];
+    SGLyricsReadJSON(request, ^(id root) { done([root isKindOfClass:NSDictionary.class] ? root : nil); });
 }
 
 // [43060,3600](43060,120,0)To (43180,330,0)seize (43510,420,0)everything …

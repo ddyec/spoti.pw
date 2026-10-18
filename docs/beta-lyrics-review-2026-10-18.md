@@ -133,3 +133,37 @@ not a universal catalogue guarantee or iOS device acceptance. No Action has run
 for this revision. The Objective-C regression suites and full IPA compilation still
 need the later Action; the Windows checks validate Python syntax, production-source
 extraction, layer imports and live source responses.
+
+## Second independent round and Action gate
+
+The user subsequently explicitly authorized a wholly different round, then an Action
+only if all its checks passed. `lyrics-live-audit-round2-initial-2026-10-18.json`
+preserves its initial failures. No songs or artists from the first round were reused.
+The original ambiguous 寶貝 sample was resolved into both official recordings,
+In the Night and In a Day, increasing the fixed corpus from 12 compositions to 13
+recordings. The final `lyrics-live-audit-round2-2026-10-18.json` has zero reused
+results from the earlier round, covering Chinese, English, Japanese, Korean,
+French, Spanish and German.
+
+The final 13 recordings passed independent original-text comparison (minimum
+similarity 0.8663), 13 deliberately unrelated lyric bodies were rejected, and the
+same-composition/different-recording 寶貝 case was rejected by version and duration.
+Its similar words are not evidence that the recordings are interchangeable.
+
+Findings: 遇見's first reference query timed out; 寶貝 required precise version names;
+cardigan exposed English recording/publishing credits at opposite ends of the two
+source payloads. Strong metadata prefixes are now filtered without removing ordinary
+lyric text. Fine uses 太妍 in NetEase and TAEYEON in the reference catalogue: it passed
+the existing reference-original-text path using LRCLIB as the diagnostic reference.
+It is explicitly marked `requires_existing_reference` and is not claimed to work
+through a guessed artist alias without such evidence. No production artist lookup
+or extra fallback was added for it.
+
+NetEase's own request function was also found to bypass the shared request cache.
+It now goes through `SGLyricsReadJSON`, retaining its 3s timeout, with sorted URL
+parameters so lyric and translation consumers can actually reuse the same request.
+
+The Action checks the final audit gate, compiles/runs both Objective-C regressions,
+and reads the IPA's real CFBundleShortVersionString before building. It must stop
+if that version differs from 9.1.78. A successful Action still requires phone
+acceptance of the cover/preview behavior described above.

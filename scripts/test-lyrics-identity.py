@@ -83,6 +83,8 @@ int main(void) {
         check(SGLyricsDurationSeconds(@274000, 274) == 274, @"KuGou milliseconds normalized");
         check(SGLyricsDurationSeconds(@258264, 258) == 258, @"KuGou millisecond precision");
         check(SGLyricsDurationSeconds(@286, 274) == 286, @"alternate recording stays outside tolerance");
+        check(!SGLyricsTitleMatches(@"寶貝 (In a Day)", @"寶貝 (In the Night)"), @"same lyrics cannot erase a recording version");
+        check(labs(SGLyricsDurationSeconds(@145440, 161) - 161) > 8, @"day recording cannot pass night recording duration");
         SGLyricsQuery *animal = [SGLyricsQuery new];
         animal.title = @"Animals"; animal.artist = @"Maroon 5"; animal.seconds = 231;
         check(SGLyricsMetadataConfident(@"Animals", @"Maroon 5", 231, 6, animal), @"exact metadata allows direct use without extra fallback");
@@ -151,6 +153,10 @@ int main(void) {
         check(SGLyricsTimedCredit(@"演唱（Vocal）：某某"), @"parenthesized role");
         check(SGLyricsTimedCredit(@"词Lyricist：某某"), @"bilingual credit without whitespace");
         check(SGLyricsTimedCredit(@"母带后期处理工程师Mastering Engineer：某某"), @"mastering credit must not look like a lyric");
+        check(SGLyricsTimedCredit(@"© 2020 Example Publishing"), @"copyright is not a lyric");
+        check(SGLyricsTimedCredit(@"Produced by Example"), @"unpunctuated recording credit");
+        check(SGLyricsTimedCredit(@"Drum Programming, Percussion, Piano, Bass, Electric Guitars,"), @"continued instrument credit");
+        check(!SGLyricsTimedCredit(@"You wrote a song for me"), @"ordinary original line retained");
         NSArray *qrc = linesFromQRC(@"[0,1000]歌手：(0,100)某某(100,100)\n[1000,1000]作词/作曲：(1000,100)某某(1100,100)\n[2000,9000]The (8000,100)paper (8100,100)birds (8200,100)fly(8300,100)");
         check(qrc.count == 1 && ((SGKaraokeLine *)qrc[0]).start == 8000 && ((SGKaraokeLine *)qrc[0]).end == 8400,
               @"credits removed and real word clock controls start/end");

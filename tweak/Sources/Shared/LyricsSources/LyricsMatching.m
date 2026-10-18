@@ -105,14 +105,18 @@ BOOL SGLyricsTimedCredit(NSString *text) {
     if (![text isKindOfClass:NSString.class]) return NO;
     text = [[text stringByReplacingOccurrencesOfString:@"\uFEFF" withString:@""]
                  stringByReplacingOccurrencesOfString:@"\u200B" withString:@""];
-    static NSRegularExpression *credit;
+    static NSRegularExpression *credit, *recordingCredit;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
+        recordingCredit = [NSRegularExpression regularExpressionWithPattern:
+            @"^\\s*(?:©|℗|\\([cp]\\)|All Rights Reserved\\b|(?:Produced|Recorded|Mixed|Mastered|Published|Written|Composed|Arranged|Engineered|Orchestration|(?:Additional )?recording|Vocals recorded|Modular Synth|Drum Programming|Trombone|Viola and Violin|Cello|Mellotron and Synthesizers|Drum Programming, Percussion, Piano, Bass, Electric Guitars)\\b(?:\\s+(?:by|at)\\b|\\s*[:,]))"
+            options:NSRegularExpressionCaseInsensitive error:nil];
         credit = [NSRegularExpression regularExpressionWithPattern:
             @"^\\s*(?:作词|作曲|编曲|演唱|原唱|歌手|词曲|混音(?:师)?|录音(?:师)?|母带(?:处理工程师)?|制作(?:人)?|出品|策划|监制|发行|合声|和声|人声|吉他|原声吉他|电吉他|贝斯|貝斯|鼓|弦乐|弦樂|钢琴|鋼琴|乐队|音乐制作|和音|录音工作室|混音工作室|音乐制作助理|母带后期(?:制作人|处理工程师|处理录音室)|词|曲|Lyrics?(?: by)?|Composer|Composed by|Arranged by|Produced by|Vocals?(?:ist)?|Singer|Artist|OP|SP)(?:\\s*[/／&、]\\s*(?:作词|作曲|编曲|词|曲))?(?:\\s*[（(][^）)]{0,40}[）)])?(?:\\s*[A-Za-z][A-Za-z&/ ]{0,30})?\\s*[:：]"
             options:NSRegularExpressionCaseInsensitive error:nil];
     });
-    return [credit firstMatchInString:text options:0 range:NSMakeRange(0, text.length)] != nil;
+    return [credit firstMatchInString:text options:0 range:NSMakeRange(0, text.length)] != nil ||
+        [recordingCredit firstMatchInString:text options:0 range:NSMakeRange(0, text.length)] != nil;
 }
 
 // Catalogue titles often append the film/game and the kind of theme. Only remove a

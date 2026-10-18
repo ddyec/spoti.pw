@@ -1,0 +1,638 @@
+{
+  "captured_at": "2026-10-18T14:13:33.496712+00:00",
+  "scope": "13 recordings, 7 languages, metadata replay and independent original-text comparison; no audio listening or device validation",
+  "tracks": [
+    {
+      "language": "zh",
+      "title": "十年",
+      "artist": "陳奕迅",
+      "seconds": 206,
+      "album": "陳奕迅 國語精選",
+      "reference": "https://music.apple.com/tw/album/%E5%8D%81%E5%B9%B4/651455891?i=651456011&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 66842,
+            "title": "十年",
+            "artist": "陈奕迅",
+            "seconds": 205,
+            "aliases": [],
+            "original_characters": 294
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "request_error",
+          "error": "QQ search code 2001"
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "543560003",
+            "title": "十年",
+            "artist": "陈奕迅",
+            "seconds": 205,
+            "aliases": [],
+            "original_characters": 294
+          }
+        }
+      ],
+      "independent_text_similarity": 1.0,
+      "status": "verified"
+    },
+    {
+      "language": "zh",
+      "title": "遇見",
+      "artist": "孫燕姿",
+      "seconds": 210,
+      "album": "Your Song (2006 新歌+精選)",
+      "reference": "https://music.apple.com/tw/album/%E9%81%87%E8%A6%8B/280911988?i=280911996&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 454828887,
+            "title": "遇见",
+            "artist": "孙燕姿",
+            "seconds": 209,
+            "aliases": [
+              "电影《向左走向右走》主题曲"
+            ],
+            "original_characters": 237
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "skipped_source_unavailable"
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "26658599",
+            "title": "遇见",
+            "artist": "孙燕姿",
+            "seconds": 210,
+            "aliases": [],
+            "original_characters": 242
+          }
+        }
+      ],
+      "independent_text_similarity": 0.9812,
+      "status": "verified"
+    },
+    {
+      "language": "zh",
+      "title": "寶貝 (In the Night)",
+      "artist": "張懸",
+      "seconds": 161,
+      "album": "My Life Will",
+      "reference": "https://music.apple.com/tw/album/%E5%AF%B6%E8%B2%9D-in-the-night/300117892?i=300117911&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 5234480,
+            "title": "宝贝 (in the night)",
+            "artist": "张悬",
+            "seconds": 161,
+            "aliases": [],
+            "original_characters": 245
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "skipped_source_unavailable"
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "26092352",
+            "title": "宝贝 (in the night)",
+            "artist": "张悬",
+            "seconds": 161,
+            "aliases": [],
+            "original_characters": 239
+          }
+        }
+      ],
+      "independent_text_similarity": 0.9132,
+      "status": "verified"
+    },
+    {
+      "language": "zh",
+      "title": "寶貝 (In a Day)",
+      "artist": "張懸",
+      "seconds": 145,
+      "album": "My Life Will",
+      "reference": "https://music.apple.com/tw/album/%E5%AF%B6%E8%B2%9D-in-a-day/300117892?i=300117920&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 453927768,
+            "title": "宝贝 (in a day)",
+            "artist": "张悬",
+            "seconds": 145,
+            "aliases": [],
+            "original_characters": 264
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "skipped_source_unavailable"
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "26074611",
+            "title": "宝贝 (in a day)",
+            "artist": "张悬",
+            "seconds": 145,
+            "aliases": [],
+            "original_characters": 250
+          }
+        }
+      ],
+      "independent_text_similarity": 0.8872,
+      "status": "verified"
+    },
+    {
+      "language": "en",
+      "title": "Someone Like You",
+      "artist": "Adele",
+      "seconds": 285,
+      "album": "21",
+      "reference": "https://music.apple.com/us/album/someone-like-you/1544491232?i=1544491998&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 16435049,
+            "title": "Someone Like You",
+            "artist": "Adele",
+            "seconds": 285,
+            "aliases": [],
+            "original_characters": 1345
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "skipped_source_unavailable"
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "337799104",
+            "title": "Someone Like You",
+            "artist": "Adele",
+            "seconds": 285,
+            "aliases": [],
+            "original_characters": 1361
+          }
+        }
+      ],
+      "independent_text_similarity": 0.9867,
+      "status": "verified"
+    },
+    {
+      "language": "en",
+      "title": "cardigan",
+      "artist": "Taylor Swift",
+      "seconds": 240,
+      "album": "folklore",
+      "reference": "https://music.apple.com/us/album/cardigan/1524801260?i=1524801580&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 1465114419,
+            "title": "cardigan",
+            "artist": "Taylor Swift",
+            "seconds": 239,
+            "aliases": [],
+            "original_characters": 1377
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "skipped_source_unavailable"
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "313103481",
+            "title": "cardigan",
+            "artist": "Taylor Swift",
+            "seconds": 239,
+            "aliases": [],
+            "original_characters": 1326
+          }
+        }
+      ],
+      "independent_text_similarity": 0.9671,
+      "status": "verified"
+    },
+    {
+      "language": "en",
+      "title": "No Surprises",
+      "artist": "Radiohead",
+      "seconds": 229,
+      "album": "OK Computer",
+      "reference": "https://music.apple.com/us/album/no-surprises/1097861387?i=1097861842&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 22497479,
+            "title": "No Surprises",
+            "artist": "Radiohead",
+            "seconds": 229,
+            "aliases": [],
+            "original_characters": 478
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "skipped_source_unavailable"
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "269521047",
+            "title": "No Surprises",
+            "artist": "Radiohead",
+            "seconds": 229,
+            "aliases": [],
+            "original_characters": 482
+          }
+        }
+      ],
+      "independent_text_similarity": 0.9958,
+      "status": "verified"
+    },
+    {
+      "language": "ja",
+      "title": "Lemon",
+      "artist": "米津玄師",
+      "seconds": 256,
+      "album": "Lemon - Single",
+      "reference": "https://music.apple.com/jp/album/lemon/1537460610?i=1537460612&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 536622304,
+            "title": "Lemon",
+            "artist": "米津玄師",
+            "seconds": 256,
+            "aliases": [
+              "日剧《非自然死亡》主题曲"
+            ],
+            "original_characters": 518
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "skipped_source_unavailable"
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "382052084",
+            "title": "Lemon",
+            "artist": "米津玄師",
+            "seconds": 255,
+            "aliases": [],
+            "original_characters": 542
+          }
+        }
+      ],
+      "independent_text_similarity": 0.9736,
+      "status": "verified"
+    },
+    {
+      "language": "ja",
+      "title": "カタオモイ",
+      "artist": "Aimer",
+      "seconds": 207,
+      "album": "daydream",
+      "reference": "https://music.apple.com/jp/album/%E3%82%AB%E3%82%BF%E3%82%AA%E3%83%A2%E3%82%A4/1538258997?i=1538259004&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 431259256,
+            "title": "カタオモイ",
+            "artist": "Aimer",
+            "seconds": 207,
+            "aliases": [
+              "单相思"
+            ],
+            "original_characters": 540
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "skipped_source_unavailable"
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "168002449",
+            "title": "カタオモイ",
+            "artist": "Aimer",
+            "seconds": 207,
+            "aliases": [],
+            "original_characters": 548
+          }
+        }
+      ],
+      "independent_text_similarity": 0.9798,
+      "status": "verified"
+    },
+    {
+      "language": "ko",
+      "title": "Fine",
+      "artist": "TAEYEON",
+      "seconds": 209,
+      "album": "My Voice - The 1st Album",
+      "reference": "https://music.apple.com/us/album/fine/1209885370?i=1209885620&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "no_match"
+        },
+        {
+          "provider": "qqmusic",
+          "status": "skipped_source_unavailable"
+        },
+        {
+          "provider": "kugou",
+          "status": "no_match"
+        },
+        {
+          "provider": "netease-reference-validation",
+          "status": "matched",
+          "candidate": {
+            "id": 461167191,
+            "title": "Fine",
+            "artist": "太妍",
+            "seconds": 209,
+            "aliases": [],
+            "original_characters": 481
+          }
+        },
+        {
+          "provider": "lrclib-diagnostic-reference",
+          "status": "matched",
+          "candidate": {
+            "id": 2269686,
+            "title": "Fine",
+            "artist": "TAEYEON",
+            "seconds": 209.0
+          }
+        }
+      ],
+      "requires_existing_reference": true,
+      "independent_text_similarity": 0.8749,
+      "status": "verified"
+    },
+    {
+      "language": "fr",
+      "title": "Alors on danse",
+      "artist": "Stromae",
+      "seconds": 208,
+      "album": "Alors on danse - Single",
+      "reference": "https://music.apple.com/fr/album/alors-on-danse/1444872839?i=1444872841&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 1867084523,
+            "title": "Alors on danse",
+            "artist": "Stromae",
+            "seconds": 208,
+            "aliases": [
+              "于是我们跳舞"
+            ],
+            "original_characters": 1085
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "skipped_source_unavailable"
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "802956393",
+            "title": "Alors on danse",
+            "artist": "Stromae",
+            "seconds": 208,
+            "aliases": [],
+            "original_characters": 1186
+          }
+        }
+      ],
+      "independent_text_similarity": 0.8956,
+      "status": "verified"
+    },
+    {
+      "language": "es",
+      "title": "Antología",
+      "artist": "Shakira",
+      "seconds": 254,
+      "album": "Pies Descalzos",
+      "reference": "https://music.apple.com/mx/album/antolog%C3%ADa/193662156?i=193662184&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 2609624139,
+            "title": "Antología",
+            "artist": "Shakira",
+            "seconds": 254,
+            "aliases": [],
+            "original_characters": 881
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "skipped_source_unavailable"
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "575316214",
+            "title": "Antología",
+            "artist": "Shakira",
+            "seconds": 254,
+            "aliases": [],
+            "original_characters": 890
+          }
+        }
+      ],
+      "independent_text_similarity": 0.9509,
+      "status": "verified"
+    },
+    {
+      "language": "de",
+      "title": "Sonne",
+      "artist": "Rammstein",
+      "seconds": 246,
+      "album": "Made In Germany 1995 - 2011 (Special Edition)",
+      "reference": "https://music.apple.com/de/album/sonne/1445751552?i=1445751713&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 18780241,
+            "title": "SONNE",
+            "artist": "Rammstein",
+            "seconds": 245,
+            "aliases": [],
+            "original_characters": 1070
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "skipped_source_unavailable"
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "37290398",
+            "title": "SONNE",
+            "artist": "Rammstein",
+            "seconds": 246,
+            "aliases": [],
+            "original_characters": 867
+          }
+        }
+      ],
+      "independent_text_similarity": 0.8663,
+      "status": "verified"
+    }
+  ],
+  "meme_regression_rejected": true,
+  "strategy": "Simplified Chinese search, reuse confirmed catalogue spelling, infer mixed duration unit; LRCLIB is diagnostic reference only",
+  "reused_results": 0,
+  "wrong_song_controls": [
+    {
+      "wanted": "十年",
+      "wrong_song": "遇見",
+      "similarity": 0.064,
+      "rejected": true
+    },
+    {
+      "wanted": "遇見",
+      "wrong_song": "寶貝 (In the Night)",
+      "similarity": 0.0788,
+      "rejected": true
+    },
+    {
+      "wanted": "寶貝 (In the Night)",
+      "wrong_song": "十年",
+      "similarity": 0.0779,
+      "rejected": true
+    },
+    {
+      "wanted": "寶貝 (In a Day)",
+      "wrong_song": "Someone Like You",
+      "similarity": 0.0162,
+      "rejected": true
+    },
+    {
+      "wanted": "Someone Like You",
+      "wrong_song": "cardigan",
+      "similarity": 0.1822,
+      "rejected": true
+    },
+    {
+      "wanted": "cardigan",
+      "wrong_song": "No Surprises",
+      "similarity": 0.1186,
+      "rejected": true
+    },
+    {
+      "wanted": "No Surprises",
+      "wrong_song": "Lemon",
+      "similarity": 0.0,
+      "rejected": true
+    },
+    {
+      "wanted": "Lemon",
+      "wrong_song": "カタオモイ",
+      "similarity": 0.0794,
+      "rejected": true
+    },
+    {
+      "wanted": "カタオモイ",
+      "wrong_song": "Fine",
+      "similarity": 0.0333,
+      "rejected": true
+    },
+    {
+      "wanted": "Fine",
+      "wrong_song": "Alors on danse",
+      "similarity": 0.0715,
+      "rejected": true
+    },
+    {
+      "wanted": "Alors on danse",
+      "wrong_song": "Antología",
+      "similarity": 0.2004,
+      "rejected": true
+    },
+    {
+      "wanted": "Antología",
+      "wrong_song": "Sonne",
+      "similarity": 0.1066,
+      "rejected": true
+    },
+    {
+      "wanted": "Sonne",
+      "wrong_song": "十年",
+      "similarity": 0.0,
+      "rejected": true
+    }
+  ],
+  "all_passed": true,
+  "version_controls": [
+    {
+      "wanted": "寶貝 (In the Night)",
+      "wrong_song": "寶貝 (In a Day)",
+      "similarity": 0.943,
+      "rejected": true,
+      "kind": "same_composition_different_recording",
+      "title_rejected": true,
+      "duration_gap": 16
+    }
+  ],
+  "control_note": "Different recordings of the same composition are checked by version title and duration, and have an additional unrelated-lyrics control."
+}
