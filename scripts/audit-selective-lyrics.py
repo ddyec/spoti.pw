@@ -19,15 +19,18 @@ spec = importlib.util.spec_from_file_location('catalogue', ROOT/'scripts/probe-l
 catalogue = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(catalogue)
 
-def normalized(s):
-    value = unicodedata.normalize('NFKC', s or '').casefold()
+def search_text(s):
+    value = unicodedata.normalize('NFKC', s or '')
     if any('\u3400' <= c <= '\u9fff' for c in value):
         # The Windows-native equivalent of the production Traditional-Simplified transform.
         fn = ctypes.windll.kernel32.LCMapStringEx
         out = ctypes.create_unicode_buffer(len(value)*3+1)
         count = fn('zh-CN', 0x02000000, value, len(value), out, len(out), None, None, 0)
         if count: value = out.value
-    return ''.join(c for c in value if c.isalnum())
+    return value
+
+def normalized(s):
+    return ''.join(c for c in search_text(s).casefold() if c.isalnum())
 
 def title_match(a,b):
     ca,cb = catalogue.title_core(a),catalogue.title_core(b)
@@ -61,8 +64,9 @@ def apple(title,artist,country):
                         album=row.get('collectionName'),reference=row.get('trackViewUrl'))
     raise ValueError('Apple reference recording not found')
 
-def search(track,provider):
+def search(track,provider,strategy=False):
     title,artist,seconds=track['title'],track['artist'],track['seconds']
+    if strategy:title,artist=search_text(title),search_text(artist)
     lead=catalogue.SEP.split(artist)[0]
     if provider=='netease':
         root=catalogue.get('https://music.163.com/api/search/get',s=catalogue.title_core(title)+' '+lead,type=1,limit=12)
@@ -84,7 +88,10 @@ def search(track,provider):
         root=catalogue.get('https://krcs.kugou.com/search',ver=1,man='yes',client='mobi',hash='',album_audio_id='',
                            keyword=lead+' - '+catalogue.title_core(title),duration=seconds*1000)
         if root.get('status')!=200:raise ValueError('KuGou search status '+str(root.get('status')))
-        rows=[dict(id=r.get('id'),title=r.get('song',''),artist=r.get('singer',''),seconds=r.get('duration',0)//1000,
+        def duration(raw):
+            if strategy:return raw if abs(raw-seconds)<abs(raw//1000-seconds) else raw//1000
+            return raw//1000
+        rows=[dict(id=r.get('id'),title=r.get('song',''),artist=r.get('singer',''),seconds=duration(r.get('duration',0)),
                    aliases=[],accesskey=r.get('accesskey')) for r in root.get('candidates',[])]
         slack=8
     fitting=[r for r in rows if any(title_match(t,title) for t in [r['title']]+r['aliases']) and
@@ -119,7 +126,8 @@ samples=[
 
 if __name__=='__main__':
     out=ROOT/'docs/lyrics-live-audit-2026-10-18.json'
-    previous=json.loads(out.read_text(encoding='utf-8')) if '--retry-unverified' in sys.argv and out.exists() else {'tracks':[]}
+    strategy='--strategy-check' in sys.argv
+    previous=json.loads(out.read_text(encoding='utf-8')) if ('--retry-unverified' in sys.argv or strategy) and out.exists() else {'tracks':[]}
     kept={(t['language'],normalized(t['title'])):t for t in previous['tracks'] if t['status']=='verified' or '--add-only' in sys.argv}
     results=[]
     for language,title,artist,country,seconds in samples:
@@ -132,11 +140,23 @@ if __name__=='__main__':
             matches=[]; providers=[]
             for provider in ('netease','qqmusic','kugou'):
                 try:
-                    candidate=search(track,provider)
+                    lookup=dict(track)
+                    if strategy and matches:
+                        lookup.update(title=matches[0]['title'],artist=matches[0]['artist'])
+                    candidate=search(lookup,provider,strategy)
                     if candidate:matches.append(candidate);providers.append({'provider':provider,'status':'matched','candidate':{k:v for k,v in candidate.items() if k!='text'}})
                     else:providers.append({'provider':provider,'status':'no_match'})
                 except Exception as exc:providers.append({'provider':provider,'status':'request_error','error':str(exc)[:150]})
                 if len(matches)==2:break
+            # Independent reference only for this diagnostic experiment, not a new production fallback.
+            if strategy and len(matches)==1:
+                try:
+                    row=catalogue.get('https://lrclib.net/api/get',track_name=track['title'],artist_name=track['artist'],duration=track['seconds'])
+                    text=lyric_text(row.get('syncedLyrics',''))
+                    if title_match(row.get('trackName',''),track['title']) and artist_score(row.get('artistName',''),track['artist']) and abs(row.get('duration',0)-track['seconds'])<=3 and len(text)>=40:
+                        candidate=dict(id=row['id'],title=row['trackName'],artist=row['artistName'],seconds=row['duration'],text=text,original_characters=len(text))
+                        matches.append(candidate);providers.append({'provider':'lrclib-diagnostic-reference','status':'matched','candidate':{k:v for k,v in candidate.items() if k!='text'}})
+                except Exception as exc:providers.append({'provider':'lrclib-diagnostic-reference','status':'request_error','error':str(exc)[:150]})
             track['providers']=providers
             if len(matches)==2:
                 ratio=difflib.SequenceMatcher(None,matches[0]['text'],matches[1]['text'],autojunk=False).ratio()
@@ -148,6 +168,8 @@ if __name__=='__main__':
         print(language,title,track['status'],track.get('independent_text_similarity',''),flush=True)
     report={'captured_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'scope':'12 recordings, 6 languages, metadata replay and independent original-text comparison; no audio listening or device validation',
             'tracks':results,'meme_regression_rejected':not title_match('Animals (金坷垃)','Animals')}
-    out=ROOT/'docs/lyrics-live-audit-2026-10-18.json'
+    if strategy:
+        out=ROOT/'docs/lyrics-live-audit-strategy-2026-10-18.json'
+        report['strategy']='Simplified Chinese search, reuse confirmed catalogue spelling, infer mixed duration unit; LRCLIB is diagnostic reference only'
     out.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print('REPORT',out,flush=True)

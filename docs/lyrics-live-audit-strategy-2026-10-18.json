@@ -1,0 +1,476 @@
+{
+  "captured_at": "2026-10-18T14:03:12.580876+00:00",
+  "scope": "12 recordings, 6 languages, metadata replay and independent original-text comparison; no audio listening or device validation",
+  "tracks": [
+    {
+      "language": "zh",
+      "title": "鴻門宴",
+      "artist": "李榮浩",
+      "seconds": 204,
+      "reference": "provided Spotify device log, 2026-10-18",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 2630191762,
+            "title": "鸿门宴",
+            "artist": "李荣浩",
+            "seconds": 204,
+            "aliases": [],
+            "original_characters": 360
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "request_error",
+          "error": "QQ search code 2001"
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "294552097",
+            "title": "鸿门宴",
+            "artist": "李荣浩",
+            "seconds": 204,
+            "aliases": [],
+            "original_characters": 366
+          }
+        }
+      ],
+      "independent_text_similarity": 0.9862,
+      "status": "verified"
+    },
+    {
+      "language": "en",
+      "title": "Animals",
+      "artist": "Maroon 5",
+      "seconds": 231,
+      "reference": "provided Spotify device log, 2026-10-18",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 28987626,
+            "title": "Animals",
+            "artist": "Maroon 5",
+            "seconds": 231,
+            "aliases": [],
+            "original_characters": 1788
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "matched",
+          "candidate": {
+            "id": 102689038,
+            "title": "Animals",
+            "artist": "Maroon 5",
+            "seconds": 229,
+            "aliases": [],
+            "original_characters": 2032
+          }
+        }
+      ],
+      "independent_text_similarity": 0.9241,
+      "status": "verified"
+    },
+    {
+      "language": "zh",
+      "title": "晴天",
+      "artist": "周杰倫",
+      "seconds": 270,
+      "album": "葉惠美",
+      "reference": "https://music.apple.com/tw/album/%E6%99%B4%E5%A4%A9/535824731?i=535824738&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "no_match"
+        },
+        {
+          "provider": "qqmusic",
+          "status": "matched",
+          "candidate": {
+            "id": 97773,
+            "title": "晴天",
+            "artist": "周杰伦",
+            "seconds": 269,
+            "aliases": [],
+            "original_characters": 599
+          }
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "461810434",
+            "title": "晴天",
+            "artist": "周杰伦",
+            "seconds": 265,
+            "aliases": [],
+            "original_characters": 526
+          }
+        }
+      ],
+      "independent_text_similarity": 0.8978,
+      "status": "verified"
+    },
+    {
+      "language": "zh",
+      "title": "水星記",
+      "artist": "郭頂",
+      "seconds": 325,
+      "album": "飛行器的執行週期",
+      "reference": "https://music.apple.com/tw/album/%E6%B0%B4%E6%98%9F%E8%A8%98/1443637757?i=1443638095&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 441491828,
+            "title": "水星记",
+            "artist": "郭顶",
+            "seconds": 325,
+            "aliases": [],
+            "original_characters": 327
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "matched",
+          "candidate": {
+            "id": 109291468,
+            "title": "水星记",
+            "artist": "郭顶",
+            "seconds": 325,
+            "aliases": [],
+            "original_characters": 332
+          }
+        }
+      ],
+      "independent_text_similarity": 0.9924,
+      "status": "verified"
+    },
+    {
+      "language": "en",
+      "title": "Yellow",
+      "artist": "Coldplay",
+      "seconds": 269,
+      "album": "Parachutes",
+      "reference": "https://music.apple.com/us/album/yellow/1122782080?i=1122782283&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 17177324,
+            "title": "Yellow",
+            "artist": "Coldplay",
+            "seconds": 266,
+            "aliases": [],
+            "original_characters": 718
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "matched",
+          "candidate": {
+            "id": 2156514,
+            "title": "Yellow",
+            "artist": "Coldplay",
+            "seconds": 266,
+            "aliases": [],
+            "original_characters": 874
+          }
+        }
+      ],
+      "independent_text_similarity": 0.8982,
+      "status": "verified"
+    },
+    {
+      "language": "en",
+      "title": "The Scientist",
+      "artist": "Coldplay",
+      "seconds": 309,
+      "album": "A Rush of Blood to the Head",
+      "reference": "https://music.apple.com/us/album/the-scientist/1122775993?i=1122776155&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 17177309,
+            "title": "The Scientist",
+            "artist": "Coldplay",
+            "seconds": 309,
+            "aliases": [],
+            "original_characters": 666
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "matched",
+          "candidate": {
+            "id": 2127846,
+            "title": "The Scientist",
+            "artist": "Coldplay",
+            "seconds": 309,
+            "aliases": [],
+            "original_characters": 835
+          }
+        }
+      ],
+      "independent_text_similarity": 0.8741,
+      "status": "verified"
+    },
+    {
+      "language": "ja",
+      "title": "夜に駆ける",
+      "artist": "YOASOBI",
+      "seconds": 261,
+      "album": "夜に駆ける - Single",
+      "reference": "https://music.apple.com/jp/album/%E5%A4%9C%E3%81%AB%E9%A7%86%E3%81%91%E3%82%8B/1490256978?i=1490256995&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 1409311773,
+            "title": "夜に駆ける",
+            "artist": "YOASOBI",
+            "seconds": 261,
+            "aliases": [
+              "向夜晚奔去"
+            ],
+            "original_characters": 709
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "no_match"
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "260678224",
+            "title": "夜に駆ける",
+            "artist": "YOASOBI",
+            "seconds": 261,
+            "aliases": [],
+            "original_characters": 719
+          }
+        }
+      ],
+      "independent_text_similarity": 0.9902,
+      "status": "verified"
+    },
+    {
+      "language": "ja",
+      "title": "夏霞",
+      "artist": "あたらよ",
+      "seconds": 229,
+      "album": "夏霞 - Single",
+      "reference": "https://music.apple.com/jp/album/%E5%A4%8F%E9%9C%9E/1578238901?i=1578238903&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 1867150097,
+            "title": "夏霞",
+            "artist": "あたらよ",
+            "seconds": 228,
+            "aliases": [],
+            "original_characters": 300
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "matched",
+          "candidate": {
+            "id": 319904456,
+            "title": "夏霞",
+            "artist": "あたらよ",
+            "seconds": 228,
+            "aliases": [],
+            "original_characters": 306
+          }
+        }
+      ],
+      "independent_text_similarity": 0.9901,
+      "status": "verified"
+    },
+    {
+      "language": "ko",
+      "title": "Spring Day",
+      "artist": "BTS",
+      "seconds": 274,
+      "album": "YOU NEVER WALK ALONE",
+      "reference": "https://music.apple.com/us/album/spring-day/1596528839?i=1596529381&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "no_match"
+        },
+        {
+          "provider": "qqmusic",
+          "status": "no_match"
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "61737720",
+            "title": "Spring Day",
+            "artist": "BTS",
+            "seconds": 274,
+            "aliases": [],
+            "original_characters": 652
+          }
+        },
+        {
+          "provider": "lrclib-diagnostic-reference",
+          "status": "matched",
+          "candidate": {
+            "id": 942431,
+            "title": "Spring Day",
+            "artist": "BTS",
+            "seconds": 274.0,
+            "original_characters": 672
+          }
+        }
+      ],
+      "independent_text_similarity": 0.9743,
+      "status": "verified"
+    },
+    {
+      "language": "ko",
+      "title": "Love Poem",
+      "artist": "IU",
+      "seconds": 258,
+      "album": "Love Poem - EP",
+      "reference": "https://music.apple.com/us/album/love-poem/1488300927?i=1488300934&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 1400436688,
+            "title": "Love poem",
+            "artist": "IU",
+            "seconds": 258,
+            "aliases": [
+              "情诗"
+            ],
+            "original_characters": 322
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "matched",
+          "candidate": {
+            "id": 330274559,
+            "title": "Love poem",
+            "artist": "IU",
+            "seconds": 258,
+            "aliases": [],
+            "original_characters": 335
+          }
+        }
+      ],
+      "independent_text_similarity": 0.9802,
+      "status": "verified"
+    },
+    {
+      "language": "fr",
+      "title": "Dernière danse",
+      "artist": "Indila",
+      "seconds": 213,
+      "album": "Mini World",
+      "reference": "https://music.apple.com/fr/album/derni%C3%A8re-danse/1440830382?i=1440830407&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 28279675,
+            "title": "Dernière danse",
+            "artist": "Indila",
+            "seconds": 213,
+            "aliases": [
+              "最后一支舞"
+            ],
+            "original_characters": 1050
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "request_error",
+          "error": "QQ search code 2001"
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "737010583",
+            "title": "Dernière danse",
+            "artist": "Indila",
+            "seconds": 213,
+            "aliases": [],
+            "original_characters": 1108
+          }
+        }
+      ],
+      "independent_text_similarity": 0.9694,
+      "status": "verified"
+    },
+    {
+      "language": "es",
+      "title": "La Camisa Negra",
+      "artist": "Juanes",
+      "seconds": 217,
+      "album": "Mi Sangre - Tour Edition / 2005",
+      "reference": "https://music.apple.com/mx/album/la-camisa-negra/1492138264?i=1492138460&uo=4",
+      "providers": [
+        {
+          "provider": "netease",
+          "status": "matched",
+          "candidate": {
+            "id": 18637632,
+            "title": "La Camisa Negra",
+            "artist": "Juanes",
+            "seconds": 216,
+            "aliases": [
+              "黑色衬衣"
+            ],
+            "original_characters": 1281
+          }
+        },
+        {
+          "provider": "qqmusic",
+          "status": "request_error",
+          "error": "QQ search code 2001"
+        },
+        {
+          "provider": "kugou",
+          "status": "matched",
+          "candidate": {
+            "id": "823215115",
+            "title": "La Camisa Negra",
+            "artist": "Juanes",
+            "seconds": 216,
+            "aliases": [],
+            "original_characters": 1281
+          }
+        }
+      ],
+      "independent_text_similarity": 1.0,
+      "status": "verified"
+    }
+  ],
+  "meme_regression_rejected": true,
+  "strategy": "Simplified Chinese search, reuse confirmed catalogue spelling, infer mixed duration unit; LRCLIB is diagnostic reference only"
+}

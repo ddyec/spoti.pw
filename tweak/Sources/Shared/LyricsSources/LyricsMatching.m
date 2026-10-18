@@ -14,6 +14,20 @@ static NSString *comparable(NSString *text) {
     return out;
 }
 
+NSString *SGLyricsSearchText(NSString *text) {
+    if (![text isKindOfClass:NSString.class]) return @"";
+    return SGLyricsContainsHan(text) ? [text stringByApplyingTransform:@"Traditional-Simplified" reverse:NO] : text;
+}
+
+NSInteger SGLyricsDurationSeconds(id value, NSInteger expected) {
+    NSInteger raw = [value respondsToSelector:@selector(integerValue)] ? [value integerValue] : 0;
+    if (raw <= 0) return 0;
+    // KuGou mixes seconds and milliseconds in the same endpoint. Interpret the unit,
+    // then keep the existing duration tolerance; do not loosen recording matching.
+    if (expected > 0) return labs(raw - expected) < labs(raw / 1000 - expected) ? raw : raw / 1000;
+    return raw < 10000 ? raw : raw / 1000;
+}
+
 BOOL SGLyricsContainsHan(NSString *text) {
     for (NSUInteger i = 0; i < text.length; i++) {
         unichar c = [text characterAtIndex:i];

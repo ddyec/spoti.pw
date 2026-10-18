@@ -5,16 +5,15 @@
 #import <zlib.h>
 
 static BOOL matches(NSDictionary *candidate, SGLyricsQuery *query) {
-    NSInteger duration = [candidate[@"duration"] respondsToSelector:@selector(integerValue)]
-        ? [candidate[@"duration"] integerValue] : 0;
-    SGLyricsDiagnosticCandidate(@"kugou", query, candidate[@"song"], candidate[@"singer"], duration / 1000, 8, YES);
+    NSInteger duration = SGLyricsDurationSeconds(candidate[@"duration"], query.seconds);
+    SGLyricsDiagnosticCandidate(@"kugou", query, candidate[@"song"], candidate[@"singer"], duration, 8, YES);
     if (![candidate[@"accesskey"] isKindOfClass:NSString.class]) SGLyricsLog(@"kugou: candidate has no usable lyric access key");
     if (!([candidate[@"id"] isKindOfClass:NSString.class] || [candidate[@"id"] isKindOfClass:NSNumber.class]) ||
         ![candidate[@"accesskey"] isKindOfClass:NSString.class] ||
         !(SGLyricsTitleMatches(candidate[@"song"], query.title) || SGLyricsTranslatedTitleCandidate(candidate[@"song"], query))) return NO;
     if (!SGLyricsArtistMatchCount(candidate[@"singer"], query.artist) &&
         !(duration > 0 && query.seconds > 0 && SGLyricsTitleEvidenceCandidate(candidate[@"song"], query))) return NO;
-    return query.seconds <= 0 || duration <= 0 || labs(duration / 1000 - query.seconds) <= 8;
+    return query.seconds <= 0 || duration <= 0 || labs(duration - query.seconds) <= 8;
 }
 
 static NSString *decodeKRC(NSString *encoded) {
@@ -150,7 +149,9 @@ static void deliverCandidate(NSDictionary *song, SGLyricsQuery *query, SGLyricsR
             : (SGLyricsTitleMatches(song[@"song"], query.title) && SGLyricsArtistMatchCount(song[@"singer"], query.artist)));
         dispatch_async(dispatch_get_main_queue(), ^{
             SGLyricsLog(@"kugou: candidate %@ original-text evidence %@", song[@"id"], verified ? @"accepted" : @"rejected");
-            result.metadataVerified = SGLyricsMetadataConfident(song[@"song"], song[@"singer"], [song[@"duration"] integerValue] / 1000, 8, query);
+            result.title = song[@"song"]; result.artist = song[@"singer"];
+            result.seconds = SGLyricsDurationSeconds(song[@"duration"], query.seconds);
+            result.metadataVerified = SGLyricsMetadataConfident(result.title, result.artist, result.seconds, 8, query);
             done(verified ? result : nil);
         });
     });
@@ -218,9 +219,8 @@ static void tryCandidates(NSArray<NSDictionary *> *songs, NSUInteger index, SGLy
 
 static void searchAt(SGLyricsQuery *query, NSUInteger attempt, void (^done)(SGLyricsResult *)) {
     if (!query.title.length || !query.artist.length) { done(nil); return; }
-    NSArray *artists = SGLyricsSearchArtists(query.artist);
     if (attempt) { done(nil); return; }
-    NSString *keyword = attempt ? artists[attempt - 1] : [NSString stringWithFormat:@"%@ - %@", SGLyricsLeadArtist(query.artist) ?: query.artist, SGLyricsSearchTitle(query.title)];
+    NSString *keyword = [NSString stringWithFormat:@"%@ - %@", SGLyricsSearchText(SGLyricsLeadArtist(query.artist) ?: query.artist), SGLyricsSearchText(SGLyricsSearchTitle(query.title))];
     NSURL *url = SGLyricsURL(@"https://krcs.kugou.com/search", @{
         @"ver": @"1", @"man": @"yes", @"client": @"mobi", @"hash": @"", @"album_audio_id": @"",
         @"keyword": keyword,
@@ -235,8 +235,8 @@ static void searchAt(SGLyricsQuery *query, NSUInteger attempt, void (^done)(SGLy
             NSUInteger aScore = SGLyricsArtistMatchCount(a[@"singer"], query.artist);
             NSUInteger bScore = SGLyricsArtistMatchCount(b[@"singer"], query.artist);
             if (aScore != bScore) return aScore > bScore ? NSOrderedAscending : NSOrderedDescending;
-            NSInteger x = labs([a[@"duration"] integerValue] / 1000 - query.seconds);
-            NSInteger y = labs([b[@"duration"] integerValue] / 1000 - query.seconds);
+            NSInteger x = labs(SGLyricsDurationSeconds(a[@"duration"], query.seconds) - query.seconds);
+            NSInteger y = labs(SGLyricsDurationSeconds(b[@"duration"], query.seconds) - query.seconds);
             return x < y ? NSOrderedAscending : x > y ? NSOrderedDescending : NSOrderedSame;
         }];
         SGLyricsLog(@"kugou: %@ by %@ search status %ld, %lu candidates, %lu matching recordings",

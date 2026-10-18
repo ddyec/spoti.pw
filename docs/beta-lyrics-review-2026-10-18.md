@@ -97,3 +97,39 @@ follow the detail page's word timing, and no 金坷垃 text should appear. Also 
 long original/translation lines, late translations, pause/resume, full lyrics
 open/close, track changes, and Reduce Motion. Repeat with animated artwork disabled
 when checking the cover preview, since animated artwork replaces the cover itself.
+
+## Follow-up: why the incomplete samples failed
+
+At the user's request, pushing and Actions were paused for further investigation.
+The original audit above remains unchanged as the before-state. The new
+`lyrics-live-audit-strategy-2026-10-18.json` retains the nine earlier verified samples
+and rechecks only the three incomplete samples with the adjusted strategy.
+
+| Sample | Observed failure | Targeted adjustment | New evidence |
+|---|---|---|---|
+| 水星記 / 郭頂 | KuGou returned no candidates for the traditional names, although NetEase matched | Simplify domestic search text to 水星记 / 郭顶; preserve displayed metadata | NetEase + KuGou original similarity 0.9924 |
+| Love Poem / IU | KuGou returned none for `Love Poem` or `love poem`, but candidates for `Love poem` | Use the selected recording's catalogue spelling in the one cross-check | NetEase + KuGou similarity 0.9802 |
+| Spring Day / BTS | KuGou returned durations `286` and `274` in seconds; the old `/1000` rejected both. NetEase's leading candidates were live/Japanese versions | Interpret mixed units using the known recording length; retain the 8-second tolerance, rejecting 286 and accepting 274 | KuGou + LRCLIB diagnostic reference similarity 0.9743 |
+
+All 12 sampled recordings now have an independently corroborated original-text
+result in the combined audit. LRCLIB was only an independent diagnostic reference
+for Spring Day; this experiment did not add it to the user's enabled providers or
+production fallback chain. QQ returned application code 2001 during these checks;
+that is an observed source rejection, not evidence of a particular quota cause.
+The strategy deliberately does not rely on repeatedly retrying QQ.
+
+Production changes corresponding to this experiment:
+
+- Search conversion happens on QQ/NetEase/KuGou query text, not the UI song names.
+- Successful provider results carry their actual catalogue spelling. The existing
+  optional single cross-check can reuse it rather than generate casing variants.
+- KuGou's duration normalization chooses the seconds/milliseconds interpretation
+  nearest the known track length; the existing recording tolerance remains intact.
+- Regression cases cover traditional queries, preserved Latin casing, both duration
+  units and rejection of the alternate 286-second recording.
+
+This is evidence for the search and matching strategy on the sampled recordings,
+not a universal catalogue guarantee or iOS device acceptance. No Action has run
+for this revision. The Objective-C regression suites and full IPA compilation still
+need the later Action; the Windows checks validate Python syntax, production-source
+extraction, layer imports and live source responses.

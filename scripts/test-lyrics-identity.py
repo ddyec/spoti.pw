@@ -77,6 +77,12 @@ int main(void) {
         check(!SGLyricsTitleMatches(@"Animals（金坷垃）", @"Animals"), @"full-width qualifier rejected");
         check(SGLyricsTitleMatches(@"鴻門宴", @"鸿门宴"), @"traditional and simplified song title");
         check(SGLyricsArtistMatchCount(@"李荣浩", @"李榮浩") == 1, @"traditional and simplified artist");
+        check([SGLyricsSearchText(@"郭頂 - 水星記") isEqualToString:@"郭顶 - 水星记"], @"domestic query uses simplified Chinese");
+        check([SGLyricsSearchText(@"IU - Love poem") isEqualToString:@"IU - Love poem"], @"catalogue casing retained in search");
+        check(SGLyricsDurationSeconds(@274, 274) == 274, @"KuGou seconds are not divided twice");
+        check(SGLyricsDurationSeconds(@274000, 274) == 274, @"KuGou milliseconds normalized");
+        check(SGLyricsDurationSeconds(@258264, 258) == 258, @"KuGou millisecond precision");
+        check(SGLyricsDurationSeconds(@286, 274) == 286, @"alternate recording stays outside tolerance");
         SGLyricsQuery *animal = [SGLyricsQuery new];
         animal.title = @"Animals"; animal.artist = @"Maroon 5"; animal.seconds = 231;
         check(SGLyricsMetadataConfident(@"Animals", @"Maroon 5", 231, 6, animal), @"exact metadata allows direct use without extra fallback");

@@ -238,8 +238,8 @@ static void searchKeyword(NSString *keyword, void (^done)(NSArray<NSDictionary *
 
 static void search(SGLyricsQuery *query, BOOL requireTitle, void (^done)(NSArray<NSDictionary *> *list)) {
     if (!query.title.length || !query.artist.length) { done(@[]); return; }
-    NSString *lead = SGLyricsLeadArtist(query.artist) ?: query.artist;
-    NSString *title = SGLyricsSearchTitle(query.title);
+    NSString *lead = SGLyricsSearchText(SGLyricsLeadArtist(query.artist) ?: query.artist);
+    NSString *title = SGLyricsSearchText(SGLyricsSearchTitle(query.title));
     searchKeyword([NSString stringWithFormat:@"%@ %@", title, lead], ^(NSArray<NSDictionary *> *list) {
         if (!list) { done(@[]); return; }
         for (NSDictionary *song in list) {
@@ -301,6 +301,9 @@ static void tryLyrics(NSArray<NSDictionary *> *ids, NSUInteger index, SGLyricsQu
             dispatch_async(dispatch_get_main_queue(), ^{
                 SGLyricsLog(@"qqmusic: candidate %@ title '%@' recording evidence %@", song[@"id"], song[@"title"], verified ? @"accepted" : @"rejected");
                 if (verified) {
+                    result.title = song[@"title"] ?: song[@"songname"];
+                    result.artist = singers(song);
+                    result.seconds = [song[@"interval"] integerValue];
                     result.metadataVerified = SGLyricsMetadataConfident(song[@"title"] ?: song[@"songname"], singers(song),
                         [song[@"interval"] integerValue], 6, query);
                     done(result);

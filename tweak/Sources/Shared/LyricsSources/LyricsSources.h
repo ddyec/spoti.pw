@@ -168,6 +168,8 @@ void SGLyricsFetchChineseTranslations(NSString *trackID, NSArray<SGKaraokeLine *
 // A bilingual local title may contain Spotify's title after a translated prefix.
 BOOL SGLyricsTitleMatches(NSString *candidate, NSString *wanted);
 NSString *SGLyricsSearchTitle(NSString *title);
+NSString *SGLyricsSearchText(NSString *text); // domestic search only; never changes display metadata
+NSInteger SGLyricsDurationSeconds(id value, NSInteger expected);
 NSArray<NSString *> *SGLyricsSearchArtists(NSString *artists);
 BOOL SGLyricsTitleEvidenceCandidate(NSString *candidate, SGLyricsQuery *query);
 BOOL SGLyricsTranslatedTitleCandidate(NSString *candidate, SGLyricsQuery *query);

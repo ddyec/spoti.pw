@@ -102,9 +102,9 @@ static NSArray<SGKaraokeLine *> *linesFromYrc(NSString *yrc) {
     return lines.count ? lines : nil;
 }
 
-static void tryLyrics(NSArray<NSDictionary *> *songs, NSUInteger index, SGLyricsQuery *query, void (^done)(NSArray<SGKaraokeLine *> *, BOOL)) {
+static void tryLyrics(NSArray<NSDictionary *> *songs, NSUInteger index, SGLyricsQuery *query, void (^done)(NSArray<SGKaraokeLine *> *, NSDictionary *)) {
     if (index >= songs.count) {
-        done(nil, NO);
+        done(nil, nil);
         return;
     }
     NSDictionary *song = songs[index];
@@ -135,7 +135,7 @@ static void tryLyrics(NSArray<NSDictionary *> *songs, NSUInteger index, SGLyrics
             dispatch_async(dispatch_get_main_queue(), ^{
                 SGLyricsLog(@"netease: song %@ has %lu lines (word timing %@), evidence %@", song[@"id"], (unsigned long)lines.count,
                             SGKaraokeLinesTiming(lines) == SGKaraokeTimingWords ? @"yes" : @"no", verified ? @"accepted" : @"rejected");
-                if (verified) done(lines, SGLyricsMetadataConfident(song[@"name"], artistsOf(song), [song[@"duration"] integerValue] / 1000, kLengthSlack, query));
+                if (verified) done(lines, song);
                 else tryLyrics(songs, index + 1, query, done);
             });
         });
@@ -145,8 +145,8 @@ static void tryLyrics(NSArray<NSDictionary *> *songs, NSUInteger index, SGLyrics
 // A recording is only taken when its length is this close to the track's, so the words fall on the
 // same beat as the recording Spotify is playing.
 static void findSongsAt(SGLyricsQuery *query, BOOL requireTitle, NSUInteger attempt, void (^done)(NSArray<NSDictionary *> *ids)) {
-    NSString *lead = SGLyricsLeadArtist(query.artist);
-    NSString *title = SGLyricsSearchTitle(query.title);
+    NSString *lead = SGLyricsSearchText(SGLyricsLeadArtist(query.artist));
+    NSString *title = SGLyricsSearchText(SGLyricsSearchTitle(query.title));
     NSInteger seconds = query.seconds;
     if (!title.length || !lead.length || seconds <= 0) {
         done(@[]);
@@ -187,14 +187,16 @@ static void findSongsAt(SGLyricsQuery *query, BOOL requireTitle, NSUInteger atte
 
 static void askAt(SGLyricsQuery *query, NSUInteger attempt, void (^done)(SGLyricsResult *result)) {
     findSongsAt(query, YES, attempt, ^(NSArray<NSDictionary *> *ids) {
-        tryLyrics(ids, 0, query, ^(NSArray<SGKaraokeLine *> *lines, BOOL confident) {
+        tryLyrics(ids, 0, query, ^(NSArray<SGKaraokeLine *> *lines, NSDictionary *recording) {
             if (!lines.count) {
                 done(nil);
                 return;
             }
             SGLyricsResult *result = [SGLyricsResult new];
             result.synced = YES;
-            result.metadataVerified = confident;
+            result.title = recording[@"name"]; result.artist = artistsOf(recording);
+            result.seconds = [recording[@"duration"] integerValue] / 1000;
+            result.metadataVerified = SGLyricsMetadataConfident(result.title, result.artist, result.seconds, kLengthSlack, query);
             result.wordTimed = SGKaraokeLinesTiming(lines) == SGKaraokeTimingWords;
             result.karaokeLines = lines;
             NSArray<NSNumber *> *starts;

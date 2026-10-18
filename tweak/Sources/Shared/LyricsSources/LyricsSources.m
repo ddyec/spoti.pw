@@ -652,6 +652,10 @@ static void step(SGLyricsWalk *walk) {
                 return;
             }
             SGLyricsQuery *check = queryFor(query.trackID);
+            // Reuse the selected recording's catalogue spelling for the one cross-check.
+            // It can differ in case or script from Spotify; the visible metadata stays intact.
+            if (fresh.title.length) check.title = fresh.title;
+            if (fresh.artist.length) check.artist = fresh.artist;
             check.referenceLines = fresh.karaokeLines;
             SGLyricsLog(@"lyrics: %@ checking %@ against %@", query.trackID, provider.key, verifier.key);
             verifier.ask(check, ^(SGLyricsResult *other) {
