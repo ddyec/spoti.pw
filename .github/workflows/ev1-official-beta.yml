@@ -1,0 +1,77 @@
+name: EV1 then official spoti.pw Beta
+
+on:
+  workflow_dispatch:
+    inputs:
+      ev1_run_id:
+        description: Successful EV1 build run in ddyec/EeveeSpotifyReincarnated
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  patch:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check two-stage preservation and dependency handling
+        run: python3 scripts/test-ev1-chain.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Download the EV1 intermediate IPA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EV1_RUN_ID: ${{ inputs.ev1_run_id }}
+        run: |
+          [[ "$EV1_RUN_ID" =~ ^[0-9]+$ ]]
+          gh run view "$EV1_RUN_ID" -R ddyec/EeveeSpotifyReincarnated --json conclusion,headBranch,headSha > ev1-run.json
+          python3 - <<'PY'
+          import json
+          run = json.load(open('ev1-run.json'))
+          assert run['conclusion'] == 'success', 'EV1 run must have succeeded'
+          assert run['headBranch'] == 'feat/ev1-spoti-companion-20261019', 'Wrong EV1 branch'
+          PY
+          gh run download "$EV1_RUN_ID" -R ddyec/EeveeSpotifyReincarnated -n EV1-IPA -D ev1
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          ipas = list(Path('ev1').rglob('*.ipa'))
+          assert len(ipas) == 1, 'Expected one EV1 intermediate IPA'
+          shutil.copyfile(ipas[0], 'ev1.ipa')
+          PY
+
+      - name: Download official 1.0 Beta kit and patcher
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v1.0.0-beta.1 -R skopevoj/spoti.pw -p '*-kit.zip' -O kit.zip
+          curl -fsSL https://chroma.pw/patcher.mjs -o patcher.mjs
+          python3 - <<'PY'
+          import json, plistlib, zipfile
+          with zipfile.ZipFile('kit.zip') as z:
+              kit = json.loads(z.read('kit.json'))
+          with zipfile.ZipFile('ev1.ipa') as z:
+              names = [n for n in z.namelist() if n.startswith('Payload/') and n.endswith('.app/Info.plist') and n.count('/') == 2]
+              assert len(names) == 1
+              version = plistlib.loads(z.read(names[0]))['CFBundleShortVersionString']
+          assert version in kit['spotifyVersions'], f'Official kit does not list Spotify {version}'
+          assert kit['version'] == '1.0.0-beta.1'
+          PY
+
+      - name: Apply official Beta and enforce EV1 initialization first
+        run: |
+          node patcher.mjs ev1.ipa kit.zip patched
+          mkdir -p out
+          python3 scripts/ev1-chain.py ev1.ipa patched/chroma-1.0.0-beta.1.ipa out/EV1-spoti-1.0.0-beta.1.ipa
+          cp ev1-run.json out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EV1-spoti-official-beta-IPA
+          path: out/*
+          if-no-files-found: error
