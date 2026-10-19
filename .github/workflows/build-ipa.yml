@@ -1,66 +1,77 @@
-name: Build IPA from your own Spotify IPA
+name: EV1 then official spoti.pw Beta
 
 on:
   workflow_dispatch:
     inputs:
-      ipa_url:
-        description: "Direct link to a decrypted Spotify IPA"
+      ev1_run_id:
+        description: Successful EV1 build run in ddyec/EeveeSpotifyReincarnated
         required: true
         type: string
-      upload_method:
-        description: "Where to put the result"
-        default: artifacts
-        type: choice
-        options: [artifacts, filebin, both]
 
-env:
-  THEOS: ${{ github.workspace }}/theos
+permissions:
+  contents: read
+  actions: read
 
 jobs:
-  build:
+  patch:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v5
-
-      - uses: levibostian/action-hide-sensitive-inputs@v1
-
-      - uses: maxim-lobanov/setup-xcode@v1
+      - uses: actions/checkout@v4
+      - name: Check two-stage preservation and dependency handling
+        run: python3 scripts/test-ev1-chain.py
+      - uses: actions/setup-node@v4
         with:
-          xcode-version: latest-stable
+          node-version: '24'
 
-      - uses: actions/checkout@v5
-        with:
-          repository: theos/theos
-          path: theos
-          submodules: recursive
-
-      - name: Install tools
+      - name: Download the EV1 intermediate IPA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EV1_RUN_ID: ${{ inputs.ev1_run_id }}
         run: |
-          brew install make dpkg ldid
-          python3 -m pip install --break-system-packages git+https://github.com/asdfzxcvbn/pyzule-rw.git
+          [[ "$EV1_RUN_ID" =~ ^[0-9]+$ ]]
+          gh run view "$EV1_RUN_ID" -R ddyec/EeveeSpotifyReincarnated --json conclusion,headBranch,headSha > ev1-run.json
+          python3 - <<'PY'
+          import json
+          run = json.load(open('ev1-run.json'))
+          assert run['conclusion'] == 'success', 'EV1 run must have succeeded'
+          assert run['headBranch'] == 'feat/ev1-spoti-companion-20261019', 'Wrong EV1 branch'
+          PY
+          gh run download "$EV1_RUN_ID" -R ddyec/EeveeSpotifyReincarnated -n EV1-IPA -D ev1
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          ipas = list(Path('ev1').rglob('*.ipa'))
+          assert len(ipas) == 1, 'Expected one EV1 intermediate IPA'
+          shutil.copyfile(ipas[0], 'ev1.ipa')
+          PY
 
-      - name: Download IPA
+      - name: Download official 1.0 Beta kit and patcher
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p ipa
-          curl -fsSL "${{ inputs.ipa_url }}" -o ipa/spotify.ipa
-          case "$(file --mime-type -b ipa/spotify.ipa)" in application/zip|application/x-ios-app) ;; *) echo "::error::Not an IPA"; exit 1 ;; esac
+          gh release download v1.0.0-beta.1 -R skopevoj/spoti.pw -p '*-kit.zip' -O kit.zip
+          curl -fsSL https://chroma.pw/patcher.mjs -o patcher.mjs
+          python3 - <<'PY'
+          import json, plistlib, zipfile
+          with zipfile.ZipFile('kit.zip') as z:
+              kit = json.loads(z.read('kit.json'))
+          with zipfile.ZipFile('ev1.ipa') as z:
+              names = [n for n in z.namelist() if n.startswith('Payload/') and n.endswith('.app/Info.plist') and n.count('/') == 2]
+              assert len(names) == 1
+              version = plistlib.loads(z.read(names[0]))['CFBundleShortVersionString']
+          assert version in kit['spotifyVersions'], f'Official kit does not list Spotify {version}'
+          assert kit['version'] == '1.0.0-beta.1'
+          PY
 
-      - run: make release
+      - name: Apply official Beta and enforce EV1 initialization first
+        run: |
+          node patcher.mjs ev1.ipa kit.zip patched
+          mkdir -p out
+          python3 scripts/ev1-chain.py ev1.ipa patched/chroma-1.0.0-beta.1.ipa out/EV1-spoti-1.0.0-beta.1.ipa
+          cp ev1-run.json out/
 
-      - uses: actions/upload-artifact@v5
-        if: inputs.upload_method != 'filebin'
+      - uses: actions/upload-artifact@v4
         with:
-          name: spoti.ipa
-          path: out/*.ipa
+          name: EV1-spoti-official-beta-IPA
+          path: out/*
           if-no-files-found: error
-
-      - name: Upload to filebin.net
-        if: inputs.upload_method != 'artifacts'
-        run: |
-          BIN="spotifyglass-${{ github.run_id }}"
-          echo "### filebin.net download" >> "$GITHUB_STEP_SUMMARY"
-          for f in out/*.ipa; do
-            curl -fsS -X POST -H "Content-Type: application/octet-stream" --data-binary "@$f" "https://filebin.net/$BIN/$(basename "$f")" >/dev/null
-            echo "- https://filebin.net/$BIN/$(basename "$f")" >> "$GITHUB_STEP_SUMMARY"
-          done
-          echo "- _filebin deletes bins after a few days of inactivity, download promptly._" >> "$GITHUB_STEP_SUMMARY"
