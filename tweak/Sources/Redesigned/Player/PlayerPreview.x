@@ -64,7 +64,8 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
 @property (nonatomic, strong) SGKaraokeLine *line;
 @property (nonatomic, copy) NSString *translation;
 @property (nonatomic, copy) NSString *track;
-@property (nonatomic) NSInteger lineIndex, position;
+@property (nonatomic) NSInteger lineIndex;
+@property (nonatomic) NSInteger position;
 @property (nonatomic) CGSize measured;
 - (void)refresh;
 @end
