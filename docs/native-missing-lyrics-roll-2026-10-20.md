@@ -65,3 +65,22 @@ normal signer and restart. Check a native-lyrics song, a native-missing song wit
 QQ lyrics, a long Latin line and STAY. Confirm no extra shrink, no cover drift
 after repeated opens/skips, no lyric/title overlap, upward sequential movement,
 and unchanged source order. Device appearance remains unverified until that test.
+
+
+## Completed English catalogue replay
+
+The 2026-10-20 bounded audit found verified lyrics for all eight samples:
+STAY, I Don't Care, See You Again, We Don't Talk Anymore, Closer,
+Something Just Like This, Señorita, and Die With A Smile. Four had both
+QQ/KuGou text corroboration (similarity 0.7464–0.9946); four had one verified
+QQ result and no verified KuGou candidate. This is not proof that every
+provider has every recording. Full metadata and query limits are retained in
+`english-release-label-audit-2026-10-20.json`.
+
+Negative controls passed for live/remix/clean/cover/karaoke and arrangement
+suffixes, including a version marker inside a performer credit and an unrelated
+uploader artist. The search breadth and acceptance thresholds were unchanged.
+Reference durations for seven samples came from the US Apple catalogue; STAY
+used the supplied device log's 142 seconds. The audit replays production
+normalization rules on Windows; native regression and on-device display are
+separate checks.

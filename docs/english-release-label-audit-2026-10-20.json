@@ -1,0 +1,248 @@
+{
+  "checked_at": "2026-10-20T13:34:04.232671+00:00",
+  "method": "Windows metadata/lyrics replay; iOS and visual behavior unverified",
+  "limits": {
+    "search_rows": 12,
+    "lyric_candidates_per_provider": 2,
+    "metadata_queries_per_provider": 1,
+    "providers": [
+      "qqmusic",
+      "kugou"
+    ]
+  },
+  "tracks": [
+    {
+      "spotify_title": "STAY (with Justin Bieber)",
+      "spotify_artist": "The Kid LAROI",
+      "search_title": "STAY",
+      "providers": {
+        "qqmusic": {
+          "id": 318931533,
+          "title": "STAY (Explicit)",
+          "artist": "The Kid LAROI, Justin Bieber",
+          "seconds": 141,
+          "aliases": [],
+          "original_characters": 1434
+        },
+        "kugou": {
+          "status": "no_verified_candidate"
+        }
+      },
+      "seconds": 142,
+      "status": "verified_metadata_single_source"
+    },
+    {
+      "spotify_title": "I Don't Care (with Justin Bieber)",
+      "spotify_artist": "Ed Sheeran",
+      "search_title": "I Don't Care",
+      "providers": {
+        "qqmusic": {
+          "id": 232052783,
+          "title": "I Don't Care",
+          "artist": "Ed Sheeran, Justin Bieber",
+          "seconds": 219,
+          "aliases": [],
+          "original_characters": 1848
+        },
+        "kugou": {
+          "status": "no_verified_candidate"
+        }
+      },
+      "duration_reference": {
+        "title": "I Don't Care",
+        "artist": "Ed Sheeran & Justin Bieber",
+        "seconds": 220,
+        "album": "No.6 Collaborations Project",
+        "reference": "https://music.apple.com/us/album/i-dont-care/1464549183?i=1464549844&uo=4"
+      },
+      "seconds": 220,
+      "status": "verified_metadata_single_source"
+    },
+    {
+      "spotify_title": "See You Again (feat. Charlie Puth)",
+      "spotify_artist": "Wiz Khalifa",
+      "search_title": "See You Again",
+      "providers": {
+        "qqmusic": {
+          "id": 102193601,
+          "title": "See You Again (feat. Charlie Puth)",
+          "artist": "Wiz Khalifa, Charlie Puth",
+          "seconds": 229,
+          "aliases": [],
+          "original_characters": 1848
+        },
+        "kugou": {
+          "id": "15979947",
+          "title": "See You Again",
+          "artist": "Wiz Khalifa",
+          "seconds": 229,
+          "aliases": [],
+          "original_characters": 1469
+        }
+      },
+      "duration_reference": {
+        "title": "See You Again (feat. Charlie Puth)",
+        "artist": "Wiz Khalifa",
+        "seconds": 230,
+        "album": "Furious 7 (Original Motion Picture Soundtrack)",
+        "reference": "https://music.apple.com/us/album/see-you-again-feat-charlie-puth/966411595?i=966411602&uo=4"
+      },
+      "seconds": 230,
+      "original_similarity": 0.8827,
+      "status": "corroborated"
+    },
+    {
+      "spotify_title": "We Don't Talk Anymore (feat. Selena Gomez)",
+      "spotify_artist": "Charlie Puth",
+      "search_title": "We Don't Talk Anymore",
+      "providers": {
+        "qqmusic": {
+          "id": 105539541,
+          "title": "We Don't Talk Anymore",
+          "artist": "Charlie Puth, Selena Gomez",
+          "seconds": 217,
+          "aliases": [],
+          "original_characters": 1719
+        },
+        "kugou": {
+          "id": "206110753",
+          "title": "We Don't Talk Anymore",
+          "artist": "Charlie Puth",
+          "seconds": 217,
+          "aliases": [],
+          "original_characters": 1708
+        }
+      },
+      "duration_reference": {
+        "title": "We Don’t Talk Anymore (feat. Selena Gomez)",
+        "artist": "Charlie Puth",
+        "seconds": 218,
+        "album": "Nine Track Mind",
+        "reference": "https://music.apple.com/us/album/we-dont-talk-anymore-feat-selena-gomez/1031416178?i=1031416185&uo=4"
+      },
+      "seconds": 218,
+      "original_similarity": 0.7464,
+      "status": "corroborated"
+    },
+    {
+      "spotify_title": "Closer (feat. Halsey)",
+      "spotify_artist": "The Chainsmokers",
+      "search_title": "Closer",
+      "providers": {
+        "qqmusic": {
+          "id": 107784594,
+          "title": "Closer",
+          "artist": "The Chainsmokers, Halsey",
+          "seconds": 244,
+          "aliases": [],
+          "original_characters": 1440
+        },
+        "kugou": {
+          "id": "24478421",
+          "title": "Closer",
+          "artist": "The Chainsmokers",
+          "seconds": 253,
+          "aliases": [],
+          "original_characters": 1453
+        }
+      },
+      "duration_reference": {
+        "title": "Closer (feat. Halsey)",
+        "artist": "The Chainsmokers",
+        "seconds": 246,
+        "album": "Collage - EP",
+        "reference": "https://music.apple.com/us/album/closer-feat-halsey/1170699510?i=1170699703&uo=4"
+      },
+      "seconds": 246,
+      "original_similarity": 0.9388,
+      "status": "corroborated"
+    },
+    {
+      "spotify_title": "Something Just Like This",
+      "spotify_artist": "The Chainsmokers",
+      "search_title": "Something Just Like This",
+      "providers": {
+        "qqmusic": {
+          "id": 200812326,
+          "title": "Something Just Like This",
+          "artist": "The Chainsmokers, Coldplay",
+          "seconds": 247,
+          "aliases": [],
+          "original_characters": 1355
+        },
+        "kugou": {
+          "status": "no_verified_candidate"
+        }
+      },
+      "duration_reference": {
+        "title": "Something Just Like This",
+        "artist": "The Chainsmokers & Coldplay",
+        "seconds": 247,
+        "album": "Memories...Do Not Open",
+        "reference": "https://music.apple.com/us/album/something-just-like-this/1207120422?i=1207120448&uo=4"
+      },
+      "seconds": 247,
+      "status": "verified_metadata_single_source"
+    },
+    {
+      "spotify_title": "Señorita",
+      "spotify_artist": "Shawn Mendes",
+      "search_title": "Señorita",
+      "providers": {
+        "qqmusic": {
+          "id": 233628917,
+          "title": "Señorita",
+          "artist": "Shawn Mendes, Camila Cabello",
+          "seconds": 190,
+          "aliases": [],
+          "original_characters": 1382
+        },
+        "kugou": {
+          "id": "125854832",
+          "title": "Señorita",
+          "artist": "Shawn Mendes",
+          "seconds": 191,
+          "aliases": [],
+          "original_characters": 1389
+        }
+      },
+      "duration_reference": {
+        "title": "Señorita",
+        "artist": "Shawn Mendes & Camila Cabello",
+        "seconds": 191,
+        "album": "Señorita - Single",
+        "reference": "https://music.apple.com/us/album/se%C3%B1orita/1468910011?i=1468910018&uo=4"
+      },
+      "seconds": 191,
+      "original_similarity": 0.9946,
+      "status": "corroborated"
+    },
+    {
+      "spotify_title": "Die With A Smile",
+      "spotify_artist": "Lady Gaga",
+      "search_title": "Die With A Smile",
+      "providers": {
+        "qqmusic": {
+          "id": 509076686,
+          "title": "Die With A Smile",
+          "artist": "Lady Gaga, Bruno Mars",
+          "seconds": 251,
+          "aliases": [],
+          "original_characters": 1136
+        },
+        "kugou": {
+          "status": "no_verified_candidate"
+        }
+      },
+      "duration_reference": {
+        "title": "Die With A Smile",
+        "artist": "Lady Gaga & Bruno Mars",
+        "seconds": 252,
+        "album": "Die With A Smile - Single",
+        "reference": "https://music.apple.com/us/album/die-with-a-smile/1762656724?i=1762656732&uo=4"
+      },
+      "seconds": 252,
+      "status": "verified_metadata_single_source"
+    }
+  ]
+}
