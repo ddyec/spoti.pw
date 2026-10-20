@@ -124,11 +124,13 @@ BOOL SGLyricsTimedCredit(NSString *text) {
 NSString *SGLyricsSearchTitle(NSString *title) {
     if (![title isKindOfClass:NSString.class]) return @"";
     NSString *value = [title precomposedStringWithCompatibilityMapping];
-    static NSRegularExpression *suffix, *theme, *version, *featured;
+    static NSRegularExpression *suffix, *theme, *version, *featured, *advisory;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
+        advisory = [NSRegularExpression regularExpressionWithPattern:@"\\s*[\\(\\[（【]Explicit[)\\]）】]\\s*$"
+            options:NSRegularExpressionCaseInsensitive error:nil];
         featured = [NSRegularExpression regularExpressionWithPattern:
-            @"\\s*[\\(\\[（【](?:feat\\.?|ft\\.?|featuring)\\s+[^)\\]）】]+[)\\]）】]\\s*$"
+            @"\\s*[\\(\\[（【](?:feat\\.?|ft\\.?|featuring|with)\\s+[^)\\]）】]+[)\\]）】]\\s*$"
             options:NSRegularExpressionCaseInsensitive error:nil];
         suffix = [NSRegularExpression regularExpressionWithPattern:
             @"\\s+(?:[-–—:]\\s+)(.+)$|\\s*[\\(\\[（【](.+)[\\)\\]）】]\\s*$" options:0 error:nil];
@@ -139,9 +141,27 @@ NSString *SGLyricsSearchTitle(NSString *title) {
             @"\\b(?:live|remix|mix|bootleg|cover|instrumental|acoustic|karaoke|demo|remaster(?:ed)?|piano|sped[ -]+up|slowed)\\b|现场|現場|伴奏|翻唱|混音|加速|降速|重制|重製|片段|剪辑|剪輯|钢琴|鋼琴|纯音乐|純音樂|摇滚|搖滾|爵士|重金属|重金屬|翻奏|演绎|演繹"
             options:NSRegularExpressionCaseInsensitive error:nil];
     });
+    // QQ puts its parental advisory in the title; Spotify displays a separate E badge.
+    // Only the exact Explicit label is removed, never Clean/Radio/Live/Remix variants.
+    NSString *withoutAdvisory = [advisory stringByReplacingMatchesInString:value options:0
+        range:NSMakeRange(0, value.length) withTemplate:@""];
+    BOOL removedAdvisory = ![withoutAdvisory isEqualToString:value];
+    value = withoutAdvisory;
     // Featured performers are credits, often absent from another catalogue's title.
     // Strip only a trailing feature-credit bracket; live/remix markers stay intact.
-    NSString *withoutFeature = [featured stringByReplacingMatchesInString:value options:0 range:NSMakeRange(0, value.length) withTemplate:@""];
+    NSTextCheckingResult *credit = [featured firstMatchInString:value options:0 range:NSMakeRange(0, value.length)];
+    NSString *creditText = credit ? [value substringWithRange:credit.range] : @"";
+    // A feature credit may itself contain a version marker: never erase it.
+    BOOL versionedCredit = credit && [version firstMatchInString:creditText options:0 range:NSMakeRange(0, creditText.length)];
+    static NSRegularExpression *arrangement;
+    static dispatch_once_t arrangementOnce;
+    dispatch_once(&arrangementOnce, ^{
+        arrangement = [NSRegularExpression regularExpressionWithPattern:@"\\b(?:orchestra|orchestral|strings|choir|vocals)\\b"
+            options:NSRegularExpressionCaseInsensitive error:nil];
+    });
+    BOOL arrangedCredit = credit && [arrangement firstMatchInString:creditText options:0 range:NSMakeRange(0, creditText.length)];
+    NSString *withoutFeature = credit && !versionedCredit && !arrangedCredit
+        ? [value stringByReplacingCharactersInRange:credit.range withString:@""] : value;
     BOOL removedFeature = ![withoutFeature isEqualToString:value];
     value = withoutFeature;
     // Check the whole suffix, including a nested version such as
@@ -155,7 +175,7 @@ NSString *SGLyricsSearchTitle(NSString *title) {
                 stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
         }
     }
-    return removedFeature ? [value stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet] : title;
+    return removedFeature || removedAdvisory ? [value stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet] : title;
 }
 
 BOOL SGLyricsTitleMatches(NSString *candidate, NSString *wanted) {

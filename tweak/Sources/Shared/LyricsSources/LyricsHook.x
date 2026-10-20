@@ -588,7 +588,11 @@ static void completed(id delegate, NSURLSession *session, NSURLSessionTask *task
     NSString *track = trackOf(self);
     if (!track) return metadata;
     BOOL has = [@"true" isEqual:metadata[@"has_lyrics"]];
-    SGLyricsNoteSpotifyHas(track, has);
+    // Missing metadata is unknown, not evidence that Spotify has no lyrics.
+    id rawHas = metadata[@"has_lyrics"];
+    if ([rawHas isKindOfClass:NSNumber.class]) has = [rawHas boolValue];
+    if ([rawHas isKindOfClass:NSNumber.class] || [rawHas isEqual:@"true"] || [rawHas isEqual:@"false"])
+        SGLyricsNoteSpotifyHas(track, has);
     SGKaraokeRememberTrack(self);
     if (has || !SGLyricsMayHave(track)) return metadata;
     static dispatch_once_t once;

@@ -12,6 +12,8 @@
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Player.h"
+#import "Shared/Lyrics/Lyrics.h"
+#include <math.h>
 
 static const CGFloat kPausedScale = 0.84, kPausedScaleReduceMotion = 0.92;
 // The bar's 40pt cover lives in a tilt view of its own; the player's is 354.
@@ -22,6 +24,13 @@ static NSHashTable<UIView *> *sg_tilts;
 // The cover of each tilt view once found. A frame Spotify sets on a scaled view becomes its scaled
 // size, leaving bounds that no longer match the tilt view's, so the cover is not looked for by size again.
 static NSMapTable<UIView *, UIView *> *sg_covers;
+static NSString *sg_previewLiftTrack;
+static CGFloat sg_previewLift;
+
+CGFloat SGRPlayerPreviewLift(void) {
+    if (SGRPlayerLyricsOpen() || SGRPlayerIsTransitioning()) return 0;
+    return [sg_previewLiftTrack isEqualToString:SGKaraokePlayingTrack()] ? sg_previewLift : 0;
+}
 
 static CGFloat currentScale(void) {
     SPTPlayerState *state = SGPlayerState();
@@ -56,6 +65,7 @@ static void scaleCover(UIView *tilt, CGFloat scale) {
     if (!cover) return;
     SGRShadowPlate *plate = SGRShadowPlateIn(tilt, &kPlateKey);
     CGAffineTransform transform = CGAffineTransformMakeScale(scale, scale);
+    transform.ty = -SGRPlayerPreviewLift();
     cover.transform = transform;
     plate.transform = transform;
 }
@@ -177,6 +187,13 @@ static void scaleEveryCover(BOOL animated) {
     };
     if (animated) SGRAnimate(SGRMotionLayout, apply, nil);
     else apply();
+}
+
+void SGRPlayerSetPreviewLift(NSString *trackID, CGFloat lift) {
+    lift = MAX(0, lift);
+    if ([sg_previewLiftTrack isEqualToString:trackID] && fabs(sg_previewLift - lift) < 0.5) return;
+    sg_previewLiftTrack = [trackID copy]; sg_previewLift = lift;
+    scaleEveryCover(NO);
 }
 
 %hook _TtC35CreativeWorkCommons_CoverArtTiltKit16CoverArtTiltView

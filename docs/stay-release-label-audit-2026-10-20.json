@@ -1,0 +1,35 @@
+{
+  "checked_at": "2026-10-20T13:29:11.230828+00:00",
+  "method": "Windows metadata/lyrics replay; iOS and visual behavior unverified",
+  "limits": {
+    "search_rows": 12,
+    "lyric_candidates_per_provider": 2,
+    "metadata_queries_per_provider": 1,
+    "providers": [
+      "qqmusic",
+      "kugou"
+    ]
+  },
+  "tracks": [
+    {
+      "spotify_title": "STAY (with Justin Bieber)",
+      "spotify_artist": "The Kid LAROI",
+      "search_title": "STAY",
+      "providers": {
+        "qqmusic": {
+          "id": 318931533,
+          "title": "STAY (Explicit)",
+          "artist": "The Kid LAROI, Justin Bieber",
+          "seconds": 141,
+          "aliases": [],
+          "original_characters": 1434
+        },
+        "kugou": {
+          "status": "no_verified_candidate"
+        }
+      },
+      "seconds": 142,
+      "status": "verified_metadata_single_source"
+    }
+  ]
+}

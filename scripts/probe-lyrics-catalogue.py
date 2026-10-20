@@ -19,12 +19,17 @@ SUFFIX = re.compile(pattern('suffix', 'NSString *SGLyricsSearchTitle('))
 THEME = re.compile(pattern('theme', 'NSString *SGLyricsSearchTitle('), re.I)
 VERSION = re.compile(pattern('version', 'NSString *SGLyricsSearchTitle('), re.I)
 FEATURED = re.compile(pattern('featured', 'NSString *SGLyricsSearchTitle('), re.I)
+ADVISORY = re.compile(pattern('advisory', 'NSString *SGLyricsSearchTitle('), re.I)
+ARRANGEMENT = re.compile(pattern('arrangement', 'NSString *SGLyricsSearchTitle('), re.I)
 REJECT_REST = json.loads(re.search(r'for \(NSString \*version in @(\[.*?\])\)', TEXT, re.S).group(1).replace('@"','"'))
 SEP = re.compile(pattern('separator','static NSArray<NSString *> *artistParts('), re.I)
 def comparable(s):
     return ''.join(c for c in unicodedata.normalize('NFKD', s or '').casefold() if c.isalnum())
 def title_core(s):
-    value = FEATURED.sub('',unicodedata.normalize('NFKC', s or ''))
+    value = ADVISORY.sub('', unicodedata.normalize('NFKC', s or ''))
+    credit = FEATURED.search(value)
+    if credit and not VERSION.search(credit.group()) and not ARRANGEMENT.search(credit.group()):
+        value = value[:credit.start()]
     m=SUFFIX.search(value)
     return value[:m.start()].strip() if m and m.start()>0 and THEME.search(m.group()) and not VERSION.search(m.group()) else value.strip()
 def title_match(a,b):

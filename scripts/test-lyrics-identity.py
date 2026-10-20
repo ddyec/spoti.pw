@@ -36,7 +36,9 @@ eligibility = section(base / "LyricsSources/LyricsSources.m", "static BOOL needs
 preview = section(root / "tweak/Sources/Native/Player/LyricsPreview.x", "static CGRect previewFrame(", "static BOOL showing(")
 redesignPreview = section(root / "tweak/Sources/Redesigned/Player/PlayerPreview.x", "static CGRect sgrPreviewFrame(", "static BOOL sgrShowing(")
 prefetchSelection = section(base / "LyricsSources/LyricsSources.m", "static BOOL shouldPublishPrefetchedLines(", "void SGLyricsPrefetch(")
-source = ("#import <Foundation/Foundation.h>\n#import <CoreGraphics/CoreGraphics.h>\n#import <dispatch/dispatch.h>\n#include <stdio.h>\n#include <stdlib.h>\n"
+nativeVerdict = (base / 'Lyrics/NativeLyricsStatus.h').read_text(encoding='utf-8')
+source = ("#import <Foundation/Foundation.h>\n#import <CoreGraphics/CoreGraphics.h>\n#import <dispatch/dispatch.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <math.h>\n"
+          + nativeVerdict
           + model + query + "BOOL SGLyricsTimedCredit(NSString *); BOOL SGLyricsContainsHan(NSString *);\n"
           + "BOOL SGLyricsDiagnosticsEnabled(void) { return NO; }\nvoid SGLyricsLog(NSString *format, ...) {}\n"
           + timing + lrc + matching + aliases + qrc + eligibility + qqMetadata + qqEligibility + krc + preview + redesignPreview + prefetchSelection)
@@ -57,6 +59,38 @@ int main(void) {
         check(CGRectContainsRect(bilingualRect, previewRect) && CGRectGetMinY(bilingualRect) > CGRectGetMaxY(cover) &&
             CGRectGetMaxY(bilingualRect) < CGRectGetMinY(info), @"bilingual preview uses available gap without moving artwork or overlapping title");
         check(CGRectIsNull(sgrPreviewFrame(cover, CGRectMake(0, 490, 402, 64), player)), @"redesigned preview cannot overlap controls");
+        CGRect lowCover = CGRectMake(24, 162, 354, 354), area = CGRectMake(0, 110, 402, 466);
+        CGFloat lift = sgrPreviewNeededLift(lowCover, info, player, area, 88, 0, YES);
+        check(lift == 44, @"native missing + bilingual preview reserves only bounded header-safe space");
+        check(sgrPreviewNeededLift(lowCover, info, player, area, 88, 1, YES) == 0, @"native present never gets a second lift");
+        check(sgrPreviewNeededLift(lowCover, info, player, area, 88, -1, YES) == 0, @"unknown or failed probe never shifts artwork");
+        check(sgrPreviewNeededLift(lowCover, info, player, area, 88, 0, NO) == 0, @"no custom preview/full lyrics/transition restores artwork");
+        check(sgrPreviewNeededLift(cover, info, player, area, 88, 0, YES) == 0, @"existing native spacing is not pushed twice");
+        for (int i = 0; i < 50; i++) check(sgrPreviewNeededLift(lowCover, info, player, area, 88, 0, YES) == lift,
+            @"layout refresh computes an absolute offset, not cumulative movement");
+        check(SGNativeLyricsVerdict(404, NO, NO, NO) == 0, @"native 404 is absent");
+        check(SGNativeLyricsVerdict(200, NO, YES, YES) == 1, @"valid native lyrics are present");
+        check(SGNativeLyricsVerdict(200, NO, YES, NO) == 0, @"valid empty native lyrics are absent");
+        for (NSNumber *status in @[@401, @403, @429, @500])
+            check(SGNativeLyricsVerdict(status.integerValue, NO, YES, NO) == -1, @"auth/rate/server errors stay unknown");
+        check(SGNativeLyricsVerdict(200, NO, NO, NO) == -1 && SGNativeLyricsVerdict(404, YES, NO, NO) == -1,
+            @"malformed JSON and transport failure never mean no lyrics");
+        check(sgrPreviewShouldRoll(YES, 2, 3, 250, NO), @"sequential lyric change rolls upward");
+        check(!sgrPreviewShouldRoll(YES, 3, 2, 250, NO) && !sgrPreviewShouldRoll(YES, 2, 5, 250, NO), @"seeks do not replay intermediate lines");
+        check(!sgrPreviewShouldRoll(NO, 2, 3, 250, NO) && !sgrPreviewShouldRoll(YES, 2, 3, 250, YES), @"track change and reduced motion do not animate");
+        check(!sgrPreviewShouldRoll(YES, 2, 3, 5000, NO), @"return from background snaps to current line");
+        check([SGLyricsSearchTitle(@"STAY (with Justin Bieber)") isEqualToString:@"STAY"], @"STAY collaborator display is not a different recording");
+        check(SGLyricsTitleMatches(@"STAY", @"STAY (with Justin Bieber)"), @"domestic/international title credit equivalence");
+        check(SGLyricsTitleMatches(@"STAY (Explicit)", @"STAY (with Justin Bieber)"), @"QQ explicit title label matches Spotify separate E badge");
+        check(!SGLyricsTitleMatches(@"STAY (Explicit)", @"STAY (Clean)"), @"clean edition is not collapsed into explicit");
+        check(!SGLyricsTitleMatches(@"STAY (Live) (Explicit)", @"STAY"), @"explicit cleanup retains live qualifier");
+        for (NSString *bad in @[@"STAY (with Justin Bieber Live)", @"STAY (Live)", @"STAY (with Orchestra)",
+              @"STAY (with Vocals)", @"STAY (Remix)", @"STAY (Acoustic Cover)", @"Stay - Justin Bieber&The Kid Laroi"])
+            check(!SGLyricsTitleMatches(bad, @"STAY (with Justin Bieber)"), @"credit cleanup does not erase versions or uploader titles");
+        SGLyricsQuery *stay = [SGLyricsQuery new]; stay.title = @"STAY (with Justin Bieber)";
+        stay.artist = @"The Kid LAROI"; stay.seconds = 142;
+        check(SGLyricsMetadataConfident(@"STAY", @"The Kid LAROI, Justin Bieber", 142, 6, stay), @"STAY still needs the real artist and recording duration");
+        check(!SGLyricsMetadataConfident(@"STAY", @"恋雪海螺", 142, 6, stay), @"same length uploader is not the official recording");
         NSString *longTitle = @"Moon Halo - Honkai Impact 3Rd \"Everlasting Flames\" Animated Short Theme";
         for (NSString *title in @[
             longTitle,

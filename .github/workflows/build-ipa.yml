@@ -45,8 +45,27 @@ jobs:
 
       - run: make release
 
+      - name: Verify the supplied 9.1.78 EEVEE package is preserved
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile, plistlib
+          outputs = list(Path('out').glob('*.ipa'))
+          assert len(outputs) == 1
+          with zipfile.ZipFile('ipa/spotify.ipa') as original, zipfile.ZipFile(outputs[0]) as result:
+              info_path = next(n for n in original.namelist() if n.startswith('Payload/') and n.endswith('.app/Info.plist') and n.count('/') == 2)
+              assert plistlib.loads(original.read(info_path))['CFBundleShortVersionString'] == '9.1.78'
+              assert plistlib.loads(result.read(info_path))['CFBundleShortVersionString'] == '9.1.78'
+              retained = [n for n in original.namelist() if 'eevee' in n.lower() or 'SwiftProtobuf.framework/' in n]
+              assert any(n.endswith('.dylib') for n in retained), 'Supplied EEVEE dylib missing'
+              for n in retained:
+                  assert n in result.namelist() and original.read(n) == result.read(n), 'EEVEE payload changed: ' + n
+              print('Preserved', len(retained), 'supplied EEVEE files; no EEVEE rebuild or replacement')
+          outputs[0].rename('out/Spotify-9.1.78-Lyrics-Lift-Roll.ipa')
+          PY
+
       - uses: actions/upload-artifact@v5
         with:
-          name: spoti-issue-144-async-translation-ipa
+          name: spoti-9.1.78-lyrics-lift-roll-ipa
           path: out/*.ipa
           if-no-files-found: error

@@ -103,6 +103,10 @@ void SGKaraokeRequestLyrics(NSString *trackID);
 // Asks Spotify's JSON lyrics for the track once, and keeps its lines only if they are more finely
 // timed than the ones kept: the lyrics view was left with plain text, and Spotify may have it timed.
 void SGKaraokeAskSpotifyForTiming(NSString *trackID);
+// Only probes unknown native availability, coalesced and capped at two attempts
+// per cached track. Never publishes these lyrics into the selected-source cache.
+void SGKaraokeProbeNativeLyrics(NSString *trackID);
+extern NSNotificationName const SGKaraokeNativeLyricsDidChangeNotification;
 // The Authorization header of Spotify's own requests, nil until one has gone out. Only ever sent
 // back to Spotify's servers (the lock screen's canvaz lookup), never to a lyrics source.
 NSString *SGKaraokeSpotifyAuthorization(void);

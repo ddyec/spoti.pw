@@ -7,12 +7,14 @@
 #import "Core/SGCore.h"
 #import "Shared/Sing/SGSingController.h"
 #import "Lyrics.h"
+#import "NativeLyricsStatus.h"
 #import "Shared/LockScreenLyrics/LockScreenLyrics.h"
 #import "Shared/LyricsSources/LyricsSources.h"
 #import "Shared/Player/PlayerState.h"
 #import "Headers/SPTPlayer.h"
 
 NSNotificationName const SGKaraokeLinesDidChangeNotification = @"spotifyglass.karaokeLinesDidChange";
+NSNotificationName const SGKaraokeNativeLyricsDidChangeNotification = @"spotifyglass.nativeLyricsDidChange";
 
 static const NSUInteger kKeptTracks = 40;
 static const NSUInteger kSeenTracks = 200;
@@ -141,6 +143,49 @@ static void askAgainLater(NSString *trackID) {
 
 NSString *SGKaraokeSpotifyAuthorization(void) {
     return sg_spclientHeaders[@"authorization"];
+}
+
+void SGKaraokeProbeNativeLyrics(NSString *trackID) {
+    if (!NSThread.isMainThread) {
+        dispatch_async(dispatch_get_main_queue(), ^{ SGKaraokeProbeNativeLyrics(trackID); });
+        return;
+    }
+    if (!trackID.length || SGLyricsSpotifyHas(trackID) >= 0 || !sg_spclientHeaders[@"authorization"]) return;
+    static NSCache<NSString *, NSDictionary *> *attempts;
+    static NSMutableSet<NSString *> *inFlight;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        attempts = [NSCache new]; attempts.countLimit = 40;
+        inFlight = [NSMutableSet set];
+    });
+    NSDictionary *old = [attempts objectForKey:trackID];
+    NSTimeInterval now = NSDate.timeIntervalSinceReferenceDate;
+    if ([inFlight containsObject:trackID] || [old[@"count"] integerValue] >= 2 || [old[@"next"] doubleValue] > now) return;
+    [attempts setObject:@{@"count": @([old[@"count"] integerValue] + 1), @"next": @(now + 30)} forKey:trackID];
+    [inFlight addObject:trackID];
+    NSString *address = [NSString stringWithFormat:@"https://spclient.wg.spotify.com/color-lyrics/v2/track/%@?format=json&vocalRemoval=false&market=from_token", trackID];
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:address]
+        cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:8];
+    [sg_spclientHeaders enumerateKeysAndObjectsUsingBlock:^(NSString *name, NSString *value, BOOL *stop) {
+        [request setValue:value forHTTPHeaderField:name];
+    }];
+    [request setValue:@"application/json" forHTTPHeaderField:@"Accept"];
+    [NSURLProtocol setProperty:@YES forKey:SGLyricsOwnRequestKey inRequest:request];
+    [[NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *body, NSURLResponse *response, NSError *error) {
+        NSInteger status = [response isKindOfClass:NSHTTPURLResponse.class] ? ((NSHTTPURLResponse *)response).statusCode : 0;
+        id root = body.length ? [NSJSONSerialization JSONObjectWithData:body options:0 error:nil] : nil;
+        id lyrics = [root isKindOfClass:NSDictionary.class] ? root[@"lyrics"] : nil;
+        id rows = [lyrics isKindOfClass:NSDictionary.class] ? lyrics[@"lines"] : nil;
+        BOOL valid = [rows isKindOfClass:NSArray.class];
+        NSInteger verdict = SGNativeLyricsVerdict(status, error != nil, valid, valid && [rows count] > 0);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [inFlight removeObject:trackID];
+            if (verdict < 0) return;
+            // A late answer for the previous track only updates that track's key.
+            SGLyricsNoteSpotifyHas(trackID, verdict == 1);
+            [NSNotificationCenter.defaultCenter postNotificationName:SGKaraokeNativeLyricsDidChangeNotification object:trackID];
+        });
+    }] resume];
 }
 
 // `retry`: the sources' walk failed on the way, so an answer with no lines is not final either.
