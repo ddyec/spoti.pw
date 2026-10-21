@@ -1,6 +1,7 @@
 // Redesigned player: current line below the cover, independent of Spotify preview flags.
 // Uses this look's artwork geometry and disappears while its full lyrics overlay is open.
 #import "Core/SGCore.h"
+#import "Diagnostics/SGPerformance.h"
 #import "Shared/Lyrics/Lyrics.h"
 #import "Shared/LyricsSources/LyricsSources.h"
 #import "Shared/LyricsSources/LyricsDiagnostics.h"
@@ -151,6 +152,7 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     [self updateLink];
 }
 - (void)animateText {
+    SGPerformanceCount(SGPerformancePreviewTick);
     if (UIApplication.sharedApplication.applicationState != UIApplicationStateActive || SGRPlayerIsTransitioning()) return;
     if (self.artworkUntil > 0) {
         [self updateGeometry];

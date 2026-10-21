@@ -43,7 +43,7 @@ UIViewController *SGPerformancePage(void) {
             metric(@"Memory footprint", @"memory", @"MiB"),
             metric(@"Main queue delay p95", @"p95", @"ms"),
             SGStatRow(@"Retained samples", ^NSString *{ return [SGPerformanceSnapshot()[@"retained"] stringValue]; }),
-        ], @"CPU includes Spotify and all injected modules and can exceed 100%. Heartbeats sample responsiveness, not FPS or every short stall. Thermal state and Low Power Mode are recorded; a change starts a fresh window."),
+        ], @"CPU includes Spotify and all injected modules and can exceed 100%. Heartbeats sample responsiveness, not FPS or every short stall. While recording, a 25 ms background probe captures up to 24 main-thread stack samples for delays above 50 ms; export includes these stacks for loading investigations. Thermal state and Low Power Mode are recorded; a change starts a fresh window."),
         SGNotedSection(@"Repeated operations", @[
             SGStatRow(@"Bar passes / requests", ^NSString *{
                 NSDictionary *counts = SGPerformanceSnapshot()[@"operations"];

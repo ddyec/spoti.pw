@@ -19,6 +19,28 @@ static atomic_int sg_watches;
 static atomic_uint_fast64_t sg_pending;   // mach time of the ping not answered yet, 0 when none
 static atomic_bool sg_running;
 static NSString *sg_reason;
+static atomic_bool sg_performance;
+static NSObject *sg_recordsLock;
+static NSMutableArray<NSDictionary *> *sg_records;
+static NSString *sg_stallSession;
+
+static void prepareRecords(void) {
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        sg_recordsLock = [NSObject new];
+        sg_records = [NSMutableArray array];
+        sg_stallSession = NSUUID.UUID.UUIDString;
+    });
+}
+
+NSArray<NSDictionary *> *SGHangSamplerSnapshot(void) {
+    prepareRecords();
+    @synchronized (sg_recordsLock) { return [sg_records copy]; }
+}
+void SGHangSamplerClear(void) {
+    prepareRecords();
+    @synchronized (sg_recordsLock) { [sg_records removeAllObjects]; }
+}
 
 static double seconds(uint64_t mach) {
     static mach_timebase_info_data_t base;
@@ -66,13 +88,20 @@ static NSString *describe(uintptr_t address) {
     if (info.dli_sname && strcmp(info.dli_sname, "<redacted>") != 0) {
         return [NSString stringWithFormat:@"%@ %s+%lu", image, info.dli_sname, (unsigned long)(address - (uintptr_t)info.dli_saddr)];
     }
-    return [NSString stringWithFormat:@"%@ +0x%lx", image, (unsigned long)(address - (uintptr_t)info.dli_saddr)];
+    return [NSString stringWithFormat:@"%@ +0x%lx", image, (unsigned long)(address - (uintptr_t)info.dli_fbase)];
 }
 
 static void logSample(uintptr_t frames[kMaxFrames], int count, double stalled, int index, NSString *reason) {
     NSMutableString *text = [NSMutableString stringWithFormat:@"stalled %.0f ms, sample %d\n", stalled * 1000, index];
     for (int i = 0; i < count; i++) [text appendFormat:@"%@\n", describe(frames[i])];
-    SGLogLong([NSString stringWithFormat:@"hang %@", reason], text);
+    if (atomic_load(&sg_performance)) {
+        NSDictionary *record = @{@"time": @(NSDate.date.timeIntervalSince1970), @"duration_ms": @(stalled * 1000),
+            @"sample": @(index), @"reason": reason ?: @"performance", @"session": sg_stallSession, @"stack": text};
+        @synchronized (sg_recordsLock) {
+            if (sg_records.count >= 24) [sg_records removeObjectAtIndex:0];
+            [sg_records addObject:record];
+        }
+    } else SGLogLong([NSString stringWithFormat:@"hang %@", reason], text);
 }
 
 static void *watch(void *unused) {
@@ -88,7 +117,7 @@ static void *watch(void *unused) {
             dispatch_async(dispatch_get_main_queue(), ^{ atomic_store(&sg_pending, 0); });
         } else {
             double stalled = seconds(now - pending);
-            if (stalled >= kThreshold) {
+            if (stalled >= (atomic_load(&sg_performance) ? 0.05 : kThreshold)) {
                 if (sampledStall != pending) {
                     sampledStall = pending;
                     samples = 0;
@@ -99,12 +128,17 @@ static void *watch(void *unused) {
                     int count = walk(frames);
                     samples++;
                     lastSample = stalled;
-                    if (count) logSample(frames, count, stalled, samples, sg_reason);
+                    if (count) {
+                        NSString *reason;
+                        @synchronized (sg_recordsLock) { reason = sg_reason; }
+                        @autoreleasepool { logSample(frames, count, stalled, samples, reason); }
+                    }
                 }
             }
         }
-        usleep(kTick);
+        usleep(atomic_load(&sg_performance) ? 25000 : kTick);
     }
+    atomic_store(&sg_pending, 0);
     atomic_store(&sg_running, false);
     // A watch opened while this thread was on its way out finds it still marked running and starts none.
     if (atomic_load(&sg_watches) > 0 && !atomic_exchange(&sg_running, true)) continue;
@@ -121,7 +155,8 @@ void SGHangSamplerStart(NSString *reason, NSTimeInterval duration) {
         sg_stackHigh = (uintptr_t)pthread_get_stackaddr_np(main);
         sg_stackLow = sg_stackHigh - pthread_get_stacksize_np(main);
     }
-    sg_reason = [reason copy];
+    prepareRecords();
+    @synchronized (sg_recordsLock) { sg_reason = [reason copy]; }
     atomic_fetch_add(&sg_watches, 1);
     if (!atomic_exchange(&sg_running, true)) {
         pthread_t thread;
@@ -136,4 +171,11 @@ void SGHangSamplerStart(NSString *reason, NSTimeInterval duration) {
 
 void SGHangSamplerStop(void) {
     if (atomic_load(&sg_watches) > 0) atomic_fetch_sub(&sg_watches, 1);
+}
+
+void SGHangSamplerSetPerformanceEnabled(BOOL enabled) {
+    if (!NSThread.isMainThread) return;
+    BOOL was = atomic_exchange(&sg_performance, enabled);
+    if (enabled && !was) SGHangSamplerStart(@"foreground loading", 0);
+    else if (!enabled && was) SGHangSamplerStop();
 }

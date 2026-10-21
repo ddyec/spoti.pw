@@ -1,4 +1,5 @@
 #import "SGPerformance.h"
+#import "SGHangSampler.h"
 #import "SGPerformanceMath.h"
 #import "Core/SGCore.h"
 #import <mach-o/dyld.h>
@@ -16,6 +17,10 @@ static NSString *const kBaseline = @"spotifyglass.performance.baseline";
 static const NSUInteger kHistoryLimit = 600;
 static atomic_bool sg_pending;
 static BOOL sg_collecting;
+static BOOL sg_playing, sg_paused, sg_loading, sg_stateKnown;
+void SGPerformanceSetPlaybackState(BOOL playing, BOOL paused, BOOL loading) {
+    sg_playing = playing; sg_paused = paused; sg_loading = loading; sg_stateKnown = YES;
+}
 static uint64_t sg_events[SGPerformanceEventCount];
 
 void SGPerformanceCount(SGPerformanceEvent event) {
@@ -27,6 +32,8 @@ static NSDictionary *eventCounts(void) {
         @"bar_applied": @(sg_events[SGPerformanceBarApplied]),
         @"lyrics_requests": @(sg_events[SGPerformanceLyricsRequested]),
         @"lyrics_applied": @(sg_events[SGPerformanceLyricsApplied]),
+        @"lyrics_ticks": @(sg_events[SGPerformanceLyricsTick]),
+        @"preview_ticks": @(sg_events[SGPerformancePreviewTick]),
         @"stale_lyrics_waits_skipped": @(sg_events[SGPerformanceStaleLyricsWait])};
 }
 
@@ -108,6 +115,7 @@ static SGPerfSummary readSummary(NSDictionary *s) {
 }
 - (void)refresh {
     sg_collecting = NO;
+    SGHangSamplerSetPerformanceEnabled(NO);
     self.generation++;
     if (self.timer) dispatch_source_cancel(self.timer);
     self.timer = nil;
@@ -118,6 +126,7 @@ static SGPerfSummary readSummary(NSDictionary *s) {
     [self persist];
     if (!SGFlag(SGKeyPerformance, NO) || UIApplication.sharedApplication.applicationState != UIApplicationStateActive) return;
     sg_collecting = YES;
+    SGHangSamplerSetPerformanceEnabled(YES);
     NSUInteger generation = self.generation;
     dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
     self.timer = timer;
@@ -148,11 +157,11 @@ static SGPerfSummary readSummary(NSDictionary *s) {
     NSString *profile = eeveeProfile();
     struct utsname device;
     uname(&device);
-    NSString *context = [NSString stringWithFormat:@"%s|%@|%@|%@|%d|%ld|%ld|%@", device.machine,
+    NSString *context = [NSString stringWithFormat:@"%s|%@|%@|%@|%d|%ld|%ld|%@|stack50-v2|%d%d%d%d", device.machine,
         UIDevice.currentDevice.systemVersion,
         [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"?",
         SGRedesignedUI() ? @"redesigned" : @"native", process.lowPowerModeEnabled,
-        (long)process.thermalState, (long)[NSUserDefaults.standardUserDefaults integerForKey:SGKeyPerformanceScenario], profile];
+        (long)process.thermalState, (long)[NSUserDefaults.standardUserDefaults integerForKey:SGKeyPerformanceScenario], profile, sg_stateKnown, sg_playing, sg_paused, sg_loading];
     if (![context isEqualToString:self.context]) {
         self.context = context;
         self.windowCount = self.streak = 0;
@@ -173,14 +182,15 @@ static SGPerfSummary readSummary(NSDictionary *s) {
     self.latest = @{@"time": @(NSDate.date.timeIntervalSince1970), @"session": self.session,
         @"build": @(SG_BUILD_SHA), @"mod": @(SG_VERSION), @"context": context,
         @"cpu": @(point.cpu), @"memory": @(point.memory), @"delay": @(point.delay),
-        @"regressed": @(self.regressed), @"operations": eventCounts()};
+        @"regressed": @(self.regressed), @"operations": eventCounts(),
+        @"playback": @{@"known": @(sg_stateKnown), @"playing": @(sg_playing), @"paused": @(sg_paused), @"loading": @(sg_loading)}};
     [self.history addObject:self.latest];
     if (self.history.count > kHistoryLimit) [self.history removeObjectAtIndex:0];
     if (++self.sinceSave >= 15) { self.sinceSave = 0; [self persist]; }
 }
 - (void)persist {
     if (!self.loaded) return;
-    NSDictionary *report = @{@"schema": @1, @"samples": [self.history copy]};
+    NSDictionary *report = @{@"schema": @2, @"samples": [self.history copy], @"main_thread_stalls": SGHangSamplerSnapshot()};
     dispatch_async(self.files, ^{
         NSData *data = [NSJSONSerialization dataWithJSONObject:report options:0 error:nil];
         NSString *path = historyPath();
@@ -223,6 +233,7 @@ BOOL SGPerformanceSaveBaseline(void) {
 void SGPerformanceClear(void) {
     SGPerformanceMonitor *m = monitor();
     m.historyEpoch++;
+    SGHangSamplerClear();
     memset(sg_events, 0, sizeof(sg_events));
     [m.history removeAllObjects];
     m.latest = nil;
@@ -234,7 +245,9 @@ void SGPerformanceClear(void) {
 }
 void SGPerformanceExport(void (^done)(NSURL *file)) {
     SGPerformanceMonitor *m = monitor();
-    NSDictionary *report = @{@"schema": @1, @"snapshot": SGPerformanceSnapshot(), @"samples": [m.history copy]};
+    NSDictionary *report = @{@"schema": @2, @"snapshot": SGPerformanceSnapshot(), @"samples": [m.history copy],
+        @"main_thread_stalls": SGHangSamplerSnapshot(),
+        @"stall_capture": @{@"threshold_ms": @50, @"poll_ms": @25, @"limit": @24, @"scope": @"current process, foreground while recording"}};
     dispatch_async(m.files, ^{
         NSData *data = [NSJSONSerialization dataWithJSONObject:report options:NSJSONWritingPrettyPrinted error:nil];
         NSURL *file = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:@"spoti-performance.json"]];
