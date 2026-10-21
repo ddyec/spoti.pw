@@ -10,6 +10,10 @@
 #import "Shared/LockScreenArtwork/SGCanvas.h"
 #import "Headers/SPTPlayer.h"
 #import "Shared/Player/PlayerState.h"
+#import "Diagnostics/SGPerformance.h"
+
+// The harness measures animation behavior; on-device collection is compiled by the full tweak build.
+void SGPerformanceCount(SGPerformanceEvent event) {}
 
 #pragma mark - SGRAccent.x, SGRRepaint.x
 

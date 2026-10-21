@@ -28,6 +28,8 @@
 #import "App/About/About.h"
 #import "App/Donate/Donate.h"
 #import "Pages.h"
+#import "App/Performance/PerformancePage.h"
+#import "Diagnostics/SGPerformance.h"
 
 static const CGFloat kRowHeight = 56;
 static char kRowKey, kInsetKey;
@@ -88,6 +90,7 @@ static UIViewController *modSettingsPage(void) {
         ]),
         SGSection(nil, @[
             pageRow(@"All flags", @"flag", ^UIViewController *{ return SGAllFlagsPage(); }),
+            pageRow(@"Performance diagnostics", @"gauge.with.dots.needle.50percent", ^UIViewController *{ return SGPerformancePage(); }),
             mod,
         ]),
     ]];
@@ -277,6 +280,7 @@ static SGModSettingsRow *ensureDrawerRow(UICollectionView *list) {
 %end
 
 %ctor {
+    dispatch_async(dispatch_get_main_queue(), ^{ SGPerformanceStart(); });
     %init;
     SGRequireClasses(@[@"_TtC21Settings_PlatformImpl26SettingsListViewController", @"_TtC23SideDrawer_ListPageImpl18ListViewController"]);
     SGRegisterPages();

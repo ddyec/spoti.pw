@@ -66,8 +66,8 @@ static void scaleCover(UIView *tilt, CGFloat scale) {
     SGRShadowPlate *plate = SGRShadowPlateIn(tilt, &kPlateKey);
     CGAffineTransform transform = CGAffineTransformMakeScale(scale, scale);
     transform.ty = -SGRPlayerPreviewLift();
-    cover.transform = transform;
-    plate.transform = transform;
+    if (!CGAffineTransformEqualToTransform(cover.transform, transform)) cover.transform = transform;
+    if (!CGAffineTransformEqualToTransform(plate.transform, transform)) plate.transform = transform;
 }
 
 #pragma mark - where the cover is
@@ -96,6 +96,16 @@ CGRect SGRPlayerCoverFrameIn(UIView *host) {
     UIView *cover = coverIn(tilt);
     // The cover's own transform is the paused shrink, which is what the eye sees it at.
     return cover && host ? [host convertRect:cover.bounds fromView:cover] : CGRectNull;
+}
+
+// The lyrics can open halfway through the paused-cover spring. Start their stand-in at the
+// picture currently on screen, rather than the model layer's already-final paused size.
+CGRect SGRPlayerCoverPresentationFrameIn(UIView *host) {
+    UIView *cover = coverIn(showingTilt());
+    if (!cover || !host) return CGRectNull;
+    CALayer *shown = (CALayer *)cover.layer.presentationLayer;
+    CALayer *target = (CALayer *)host.layer.presentationLayer;
+    return shown && target ? [shown convertRect:shown.bounds toLayer:target] : SGRPlayerCoverFrameIn(host);
 }
 
 CGRect SGRPlayerArtworkAreaIn(UIView *host) {
@@ -191,7 +201,7 @@ static void scaleEveryCover(BOOL animated) {
 
 void SGRPlayerSetPreviewLift(NSString *trackID, CGFloat lift) {
     lift = MAX(0, lift);
-    if ([sg_previewLiftTrack isEqualToString:trackID] && fabs(sg_previewLift - lift) < 0.5) return;
+    if ((sg_previewLiftTrack == trackID || [sg_previewLiftTrack isEqualToString:trackID]) && fabs(sg_previewLift - lift) < 0.5) return;
     sg_previewLiftTrack = [trackID copy]; sg_previewLift = lift;
     scaleEveryCover(NO);
 }

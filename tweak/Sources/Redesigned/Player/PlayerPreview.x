@@ -4,6 +4,7 @@
 #import "Shared/Lyrics/Lyrics.h"
 #import "Shared/LyricsSources/LyricsSources.h"
 #import "Shared/LyricsSources/LyricsDiagnostics.h"
+#import "Shared/Player/PlayerState.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Player.h"
 #import "Redesigned/Lyrics/SGRKaraokeView.h"
@@ -67,6 +68,7 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
 @property (nonatomic) NSInteger lineIndex;
 @property (nonatomic) NSInteger position;
 @property (nonatomic) CGSize measured;
+@property (nonatomic) BOOL showing;
 - (void)refresh;
 @end
 
@@ -82,14 +84,24 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(refresh) name:SGKaraokeLinesDidChangeNotification object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(refresh) name:SGLyricsTranslationUpdatedNotification object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(refresh) name:SGKaraokeNativeLyricsDidChangeNotification object:nil];
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(scheduleRefresh) name:UIApplicationDidBecomeActiveNotification object:nil];
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(scheduleRefresh) name:UIApplicationWillResignActiveNotification object:nil];
     return self;
 }
 - (void)dealloc { [NSNotificationCenter.defaultCenter removeObserver:self]; }
 - (void)didMoveToWindow {
     [super didMoveToWindow];
+    [self scheduleRefresh];
+}
+- (void)scheduleRefresh {
     [self.timer invalidate]; self.timer = nil;
     [self.link invalidate]; self.link = nil;
-    if (!self.window) { SGRPlayerSetPreviewLift(nil, 0); return; }
+    if (!self.window || UIApplication.sharedApplication.applicationState != UIApplicationStateActive) {
+        self.showing = NO;
+        self.alpha = 0;
+        SGRPlayerSetPreviewLift(nil, 0);
+        return;
+    }
     __weak SGRPlayerPreview *weakSelf = self;
     self.timer = [NSTimer timerWithTimeInterval:0.25 repeats:YES block:^(NSTimer *timer) { [weakSelf refresh]; }];
     [NSRunLoop.mainRunLoop addTimer:self.timer forMode:NSRunLoopCommonModes];
@@ -129,7 +141,13 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     cover = SGRPlayerCoverFrameIn(host);
     CGRect frame = CGRectIsNull(cover) ? CGRectNull : sgrPreviewFrame(cover, information, host.bounds);
     BOOL visible = ready && !CGRectIsNull(frame);
-    self.alpha = visible ? 1 : 0;
+    if (visible != self.showing) {
+        self.showing = visible;
+        // Only the surface fades. Sequential lyric lines keep their upward movement.
+        [UIView animateWithDuration:visible ? 0.20 : 0.14 delay:0
+            options:UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionCurveEaseOut
+            animations:^{ self.alpha = visible ? 1 : 0; } completion:nil];
+    }
     if (!visible) {
         [self.link invalidate]; self.link = nil;
         [self.retiring removeFromSuperview]; self.retiring = nil;
@@ -155,7 +173,7 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
         self.scroll.contentOffset = CGPointZero;
         if (rolls && outgoing) {
             UIView *incoming = self.lineView;
-            CGFloat travel = MAX(self.bounds.size.height, MAX(outgoing.bounds.size.height, incoming.bounds.size.height)) + 8;
+            CGFloat travel = MAX(outgoing.bounds.size.height, incoming.bounds.size.height) + 8;
             incoming.transform = CGAffineTransformMakeTranslation(0, travel);
             self.retiring = outgoing;
             __weak SGRPlayerPreview *weakSelf = self;
@@ -171,7 +189,10 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     }
     self.track = track; self.lineIndex = index; self.position = ms;
     [self animateText];
-    if (!self.link) {
+    SPTPlayerState *state = SGPlayerState();
+    BOOL advancing = state.isPlaying && !state.isPaused;
+    if (!advancing) { [self.link invalidate]; self.link = nil; }
+    if (advancing && !self.link) {
         self.link = [CADisplayLink displayLinkWithTarget:self selector:@selector(animateText)];
         CGFloat hz = self.window.screen.maximumFramesPerSecond;
         self.link.preferredFrameRateRange = CAFrameRateRangeMake(MIN(30, hz), hz, hz);

@@ -45,6 +45,7 @@ extern NSMutableDictionary<NSString *, NSURL *> *SGRHarnessAppleClips;
 extern NSMutableDictionary<NSString *, NSNumber *> *SGRHarnessClipDelays;
 NSUInteger SGRHarnessLineSeeks(void);
 NSUInteger SGRHarnessSkipTaps(void);
+static UIView *viewOfClass(UIView *root, NSString *name);
 
 static NSString *scenario(void) {
     const char *value = getenv("HARNESS_SCENARIO");
@@ -656,6 +657,7 @@ static void loadLyrics(void) {
     else if ([scenario() isEqualToString:@"fluid"]) [self runFluid];
     else if ([scenario() isEqualToString:@"animated"]) [self runAnimated];
     else if ([scenario() isEqualToString:@"taps"]) [self runTaps];
+    else if ([scenario() isEqualToString:@"lyrics-interruptions"]) [self runLyricsInterruptions];
     // Opened, closed and opened again, so a screenshot can be taken of each state and of the move itself.
     else for (NSNumber *at in @[@2, @6, @10]) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(at.doubleValue * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
@@ -1020,6 +1022,39 @@ static UIView *viewOfClass(UIView *root, NSString *name);
         [self playTrack:@"spotify:track:harnessF" image:imageURI(@"ffff")];
     });
     after(8.4, ^{ [self showOnScreen:second]; });
+}
+
+// Exercise the real lyrics transition with reversals faster than its completion and repeated layouts.
+// Keep the player mock's geometry fixed so jumps and stale cleanup are observable in the video.
+- (void)runLyricsInterruptions {
+    after(2, ^{ SGRPlayerToggleLyrics(); });
+    after(2.12, ^{ SGRPlayerToggleLyrics(); [self layOut]; });
+    after(2.24, ^{ SGRPlayerToggleLyrics(); [self layOut]; });
+    after(3, ^{
+        UIView *overlay = viewOfClass(self.window, @"SGRPlayerLyricsOverlay");
+        UIView *thumb = viewOfClass(self.window, @"SGRPlayerLyricsThumb");
+        [self expect:SGRPlayerLyricsOpen() && overlay.window && thumb.window
+                that:@"rapid open-close-open keeps the current overlay attached"];
+        [self expect:fabs([self.window convertRect:thumb.bounds fromView:thumb].size.width - 72) < 1
+                that:@"thumbnail settles at 72 points after reversal"];
+    });
+    after(4, ^{ SGRPlayerToggleLyrics(); });
+    after(4.12, ^{ SGRPlayerToggleLyrics(); });
+    after(4.24, ^{ SGRPlayerToggleLyrics(); [self layOut]; });
+    after(5, ^{
+        [self expect:!SGRPlayerLyricsOpen() && !viewOfClass(self.window, @"SGRPlayerLyricsOverlay")
+                that:@"rapid close-open-close removes only the finished overlay"];
+    });
+    after(6, ^{
+        SGRHarnessSetTrackWith(@"spotify:track:harnessA", imageURI(@"aaaa"), YES, nil, nil);
+    });
+    after(6.12, ^{ SGRPlayerToggleLyrics(); });
+    after(7, ^{
+        [self expect:SGRPlayerLyricsOpen() that:@"lyrics open during paused-cover shrink"];
+        NSLog(@"[harness] lyrics interruption checks: %lu of %lu right -- %@",
+            (unsigned long)(self->_checks - self->_failures), (unsigned long)self->_checks,
+            self->_failures ? @"FAIL" : @"PASS");
+    });
 }
 
 #pragma mark - taps

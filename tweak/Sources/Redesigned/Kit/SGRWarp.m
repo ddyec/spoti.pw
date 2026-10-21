@@ -662,6 +662,7 @@ static NSUInteger sg_costLogs;
     NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
     for (NSNotificationName name in @[UIApplicationDidBecomeActiveNotification, UIApplicationWillResignActiveNotification,
                                       UIApplicationDidEnterBackgroundNotification, UIApplicationWillEnterForegroundNotification,
+                                      NSProcessInfoPowerStateDidChangeNotification, NSProcessInfoThermalStateDidChangeNotification,
                                       UIAccessibilityReduceMotionStatusDidChangeNotification]) {
         [center addObserver:self selector:@selector(updatePace) name:name object:nil];
     }
@@ -686,7 +687,8 @@ static NSUInteger sg_costLogs;
     SGRWarpPace pace = SGRWarpPaceMoving;
     if (!self.window || state == UIApplicationStateBackground) pace = SGRWarpPaceHidden;
     else if (state != UIApplicationStateActive) pace = SGRWarpPaceFrozen;
-    else if (SGRReduceMotion()) pace = SGRWarpPaceStill;
+    else if (SGRReduceMotion() || NSProcessInfo.processInfo.lowPowerModeEnabled ||
+             NSProcessInfo.processInfo.thermalState >= NSProcessInfoThermalStateSerious) pace = SGRWarpPaceStill;
     self.warpLayer.pace = pace;
 }
 

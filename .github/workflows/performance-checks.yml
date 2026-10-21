@@ -1,0 +1,57 @@
+name: Performance and lyric motion checks
+
+on:
+  push:
+    branches: [feat/performance-diagnostics-20261021]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: performance-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  THEOS: ${{ github.workspace }}/theos
+
+jobs:
+  check:
+    runs-on: macos-15-intel
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Regression checks
+        run: |
+          bash scripts/test-performance.sh
+          scripts/check-layers.sh
+          python3 scripts/test-lyrics-identity.py
+          python3 scripts/test-lyrics-order.py
+          python3 scripts/test-lyrics-requests.py
+      - uses: actions/checkout@v5
+        with:
+          repository: theos/theos
+          path: theos
+          submodules: recursive
+      - name: Install compiler tools
+        run: brew install make dpkg ldid
+      - name: Read verified input flags without modifying the IPA
+        run: |
+          mkdir -p ipa
+          curl -fL --retry 3 https://github.com/ddyec/python38/releases/download/22/com.spotify.client_9.1.78_und3fined.2.ipa -o ipa/spotify.ipa
+          echo 'dc1706972885217081b3a9debcf07e3a5762a5d59ef5873aa2533ebd8bd719b5  ipa/spotify.ipa' | shasum -a 256 -c -
+          python3 scripts/extract-flags.py ipa/spotify.ipa
+      - name: Compile the full tweak
+        run: gmake -C tweak package
+      - name: Compile the player animation harness
+        env:
+          HARNESS_ARCH: x86_64
+        run: sh harness/player/build.sh
+      - uses: actions/upload-artifact@v5
+        with:
+          name: performance-source-build
+          path: tweak/packages/*.deb
+          if-no-files-found: error
