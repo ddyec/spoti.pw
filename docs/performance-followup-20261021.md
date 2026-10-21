@@ -66,3 +66,20 @@ Regression checks reconstruct the rendered bounds for left/center/right anchors 
 and paused widths, and verify that mixed single/multi-line groups cannot intersect throughout
 the upward transition. A mutation using the previous center assumption fails these checks.
 Visual acceptance remains on the owner’s device; no simulator or recording is used.
+
+## Play/pause typography continuity
+
+The subsequent device check confirmed alignment but exposed clipping during artwork shrink
+and a delayed rewrap after the follower window. The preview now measures in the unscaled
+artwork coordinates with its stable per-song height budget. The same word/translation views,
+font and wrap inputs survive play/pause. A separate canvas follows the artwork presentation
+scale and position on every animation frame, including rapid reversals. The endpoint hook no
+longer rebuilds text. Normal playback keeps full-size typography; pausing smoothly scales the
+same paragraph with the artwork instead of swapping layouts.
+
+Sentence changes still move upward on the child views. Their motion composes with the parent
+canvas scale, so one transform cannot overwrite the other. Very long groups retain their
+translation and the existing vertical scroll rather than silently dropping content. Real host
+resizing and source/translation changes still update the layout. Regression checks sweep
+shrink/grow reversals and concurrent sentence progress, verifying stable measurement, continuous
+scale and no horizontal truncation or intersecting groups. Visual acceptance remains on-device.

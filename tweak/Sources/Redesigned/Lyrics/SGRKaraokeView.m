@@ -857,11 +857,11 @@ static const NSUInteger kLinesPerFrame = 4;
 UIView *SGRKaraokePreviewLine(SGKaraokeLine *line, CGFloat width, CGFloat height) {
     NSArray *order = @[@(SGRLyricsTextLyrics), @(SGRLyricsTextTranslation)];
     SGRKaraokeStyle *chosen = nil;
-    for (NSUInteger pass = 0; pass < 2 && !chosen; pass++) {
-        for (CGFloat size = 24; size >= 20; size--) {
-            SGRKaraokeStyle *style = [[SGRKaraokeStyle alloc] initWithSize:size order:order pronunciation:NO translation:pass == 0];
-            if (layOut(line, width, style, -1).height <= height || (pass == 1 && size == 20)) { chosen = style; break; }
-        }
+    for (CGFloat size = 24; size >= 20; size--) {
+        SGRKaraokeStyle *style = [[SGRKaraokeStyle alloc] initWithSize:size order:order pronunciation:NO translation:YES];
+        // Keep supplied translations even for unusually long groups. The preview already
+        // scrolls vertically when the minimum readable type cannot fit its reserved band.
+        if (layOut(line, width, style, -1).height <= height || size == 20) { chosen = style; break; }
     }
     SGRKaraokeLineView *view = [[SGRKaraokeLineView alloc] initWithLine:line width:width style:chosen under:nil blurred:NO
         sweepsEstimates:SGFlag(SGKeyLyricsSimulateWords, NO)];

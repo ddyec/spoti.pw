@@ -98,6 +98,13 @@ CGRect SGRPlayerCoverFrameIn(UIView *host) {
     return cover && host ? [host convertRect:cover.bounds fromView:cover] : CGRectNull;
 }
 
+// Text is laid out in the full cover's coordinates. Its container scales that same
+// layout continuously with the visible cover instead of rewrapping after the spring.
+CGRect SGRPlayerPreviewLayoutCoverFrameIn(UIView *host) {
+    UIView *tilt = showingTilt();
+    return tilt && host ? [host convertRect:tilt.bounds fromView:tilt] : CGRectNull;
+}
+
 // The lyrics can open halfway through the paused-cover spring. Start their stand-in at the
 // picture currently on screen, rather than the model layer's already-final paused size.
 CGRect SGRPlayerCoverPresentationFrameIn(UIView *host) {

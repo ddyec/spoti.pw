@@ -116,6 +116,47 @@ int main(void) {
                 }
             }
         }
+        // Keep a single word layout while its canvas scales on every presentation frame.
+        CGSize stableText = sgrPreviewTextSize(cover, player, 88);
+        check(stableText.width == 354 && stableText.height == 88, @"full-size typography and translation budget are stable");
+        CGFloat previousScale = 1;
+        for (NSUInteger cycle = 0; cycle < 4; cycle++) {
+            for (NSUInteger frame = 0; frame <= 120; frame++) {
+                CGFloat progress = frame / 120.0;
+                CGFloat artworkScale = cycle % 2 ? 0.84 + 0.16 * progress : 1 - 0.16 * progress;
+                CGRect shownCover = CGRectInset(cover, cover.size.width * (1 - artworkScale) / 2,
+                    cover.size.height * (1 - artworkScale) / 2);
+                CGRect movingGap = sgrPreviewFrame(shownCover, info, player);
+                CGFloat textScale = sgrPreviewTextScale(movingGap.size.width, stableText.width);
+                check(CGSizeEqualToSize(sgrPreviewTextSize(cover, player, 88), stableText),
+                    @"reversing playback scale never changes font/wrap inputs");
+                check(fabs(textScale - artworkScale) < 0.001 && fabs(textScale - previousScale) < 0.002,
+                    @"glyph scale follows every frame, including reversals, without endpoint substitution");
+                previousScale = textScale;
+                CGSize canvasViewport = CGSizeMake(stableText.width, movingGap.size.height / textScale);
+                for (NSNumber *edge in @[@0, @0.5, @1]) {
+                    CGPoint anchor = CGPointMake(edge.doubleValue, 0.5);
+                    CGPoint position = sgrPreviewLinePosition(canvasViewport, stableText, anchor);
+                    CGFloat left = (position.x - anchor.x * stableText.width) * textScale;
+                    check(left >= -0.001 && left + stableText.width * textScale <= movingGap.size.width + 0.001,
+                        @"scaled word groups remain horizontally unclipped for every anchor");
+                }
+                CGFloat travel = sgrPreviewRollDistance(canvasViewport.height, 56, 84);
+                for (NSUInteger step = 0; step <= 10; step++) {
+                    CGFloat roll = step / 10.0;
+                    CGFloat oldTop = MAX(0, (canvasViewport.height - 56) / 2);
+                    CGFloat newTop = MAX(0, (canvasViewport.height - 84) / 2);
+                    CGFloat oldBottom = (oldTop + 56 - travel * roll) * textScale;
+                    CGFloat nextTop = (newTop + travel * (1 - roll)) * textScale;
+                    check(nextTop - oldBottom >= 8 * textScale - 0.001,
+                        @"vertical sentence movement stays separated while its parent scales");
+                }
+            }
+        }
+        CGRect widerPlayer = CGRectMake(0, 0, 490, 874);
+        check(sgrPreviewTextSize(CGRectMake(24, 118, 442, 442), widerPlayer, 88).width > stableText.width,
+            @"real host resizing still updates text layout");
+        check(CGSizeEqualToSize(sgrPreviewTextSize(CGRectNull, player, 88), CGSizeZero), @"missing artwork cannot yield an invalid text width");
         check(sgrPreviewShouldRoll(YES, 2, 3, 250, NO), @"sequential lyric change rolls upward");
         check(!sgrPreviewShouldRoll(YES, 3, 2, 250, NO) && !sgrPreviewShouldRoll(YES, 2, 5, 250, NO), @"seeks do not replay intermediate lines");
         check(!sgrPreviewShouldRoll(NO, 2, 3, 250, NO) && !sgrPreviewShouldRoll(YES, 2, 3, 250, YES), @"track change and reduced motion do not animate");

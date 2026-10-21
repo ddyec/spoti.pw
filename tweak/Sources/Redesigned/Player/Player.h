@@ -95,6 +95,8 @@ UIView *SGRPlayerCoverList(void);
 // The cover on screen as it is drawn, its paused shrink included, in `host`'s coordinates; CGRectNull
 // when no cover has laid out.
 CGRect SGRPlayerCoverFrameIn(UIView *host);
+// Unscaled artwork layout, for stable text measurement through pause/resume.
+CGRect SGRPlayerPreviewLayoutCoverFrameIn(UIView *host);
 // A preview-only vertical compensation; the upstream paused scale is unchanged.
 CGFloat SGRPlayerPreviewLift(void);
 // A bounded presentation-layer follower for artwork springs, including pause/resume reversal.

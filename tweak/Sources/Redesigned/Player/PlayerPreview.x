@@ -49,10 +49,23 @@ static CGRect sgrPreviewViewport(CGRect gap, CGFloat textHeight) {
     return CGRectMake(gap.origin.x, gap.origin.y + (gap.size.height - height) / 2, gap.size.width, height);
 }
 
+// Measure once in full-size cover coordinates. The canvas, not the text layout, follows
+// the artwork's continuous presentation scale; no late wrap/font substitution is needed.
+static CGSize sgrPreviewTextSize(CGRect layoutCover, CGRect host, CGFloat preferredHeight) {
+    if (CGRectIsNull(layoutCover)) return CGSizeZero;
+    CGFloat side = MAX(24, CGRectGetMinX(layoutCover));
+    CGFloat width = floor(host.size.width - 2 * side);
+    return width >= 100 ? CGSizeMake(width, preferredHeight) : CGSizeZero;
+}
+
+static CGFloat sgrPreviewTextScale(CGFloat viewportWidth, CGFloat layoutWidth) {
+    return layoutWidth > 0 ? MIN(1, MAX(0.01, viewportWidth / layoutWidth)) : 1;
+}
+
 // Karaoke line views anchor at their leading/trailing edge, not at (0.5, 0.5).
-// Position the layer's anchor so the untransformed text starts at x=0 in the viewport.
+// Align the stable text column to the corresponding edge of the canvas.
 static CGPoint sgrPreviewLinePosition(CGSize viewport, CGSize text, CGPoint anchor) {
-    return CGPointMake(text.width * anchor.x,
+    return CGPointMake(viewport.width * anchor.x,
         MAX(0, (viewport.height - text.height) / 2) + text.height * anchor.y);
 }
 
@@ -78,6 +91,8 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
 @property (nonatomic, strong) NSTimer *timer;
 @property (nonatomic, strong) CADisplayLink *link;
 @property (nonatomic, strong) UIScrollView *scroll;
+@property (nonatomic, strong) UIView *canvas;
+@property (nonatomic) CGFloat canvasScale;
 @property (nonatomic, strong) UIView *lineView;
 @property (nonatomic, strong) UIView *retiring;
 @property (nonatomic, strong) SGKaraokeLine *line;
@@ -103,6 +118,9 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     _scroll.alwaysBounceVertical = NO;
     _scroll.clipsToBounds = YES;
     [self addSubview:_scroll];
+    _canvas = [[UIView alloc] initWithFrame:CGRectZero];
+    _canvasScale = 1;
+    [_scroll addSubview:_canvas];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(refresh) name:SGKaraokeLinesDidChangeNotification object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(refresh) name:SGLyricsTranslationUpdatedNotification object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(refresh) name:SGKaraokeNativeLyricsDidChangeNotification object:nil];
@@ -135,16 +153,30 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     CGRect cover = SGRPlayerCoverPresentationFrameIn(host);
     CGRect gap = CGRectIsNull(cover) ? CGRectNull : sgrPreviewFrame(cover, [host convertRect:info.bounds fromView:info], host.bounds);
     if (CGRectIsNull(gap)) { self.frame = CGRectZero; return; }
+    CGFloat scale = sgrPreviewTextScale(gap.size.width, self.measured.width);
     CGFloat height = MAX(self.lineView.bounds.size.height, self.retiring.bounds.size.height);
-    self.frame = sgrPreviewViewport(gap, height);
-    self.scroll.frame = self.bounds;
+    CGRect viewport = sgrPreviewViewport(gap, height * scale);
+    if (!CGRectEqualToRect(self.frame, viewport)) self.frame = viewport;
+    if (!CGRectEqualToRect(self.scroll.frame, self.bounds)) self.scroll.frame = self.bounds;
+    CGSize layoutViewport = CGSizeMake(self.measured.width, self.bounds.size.height / scale);
+    CGFloat contentHeight = MAX(layoutViewport.height, height);
+    CGRect canvasBounds = CGRectMake(0, 0, self.measured.width, contentHeight);
+    CGPoint canvasCenter = CGPointMake(self.bounds.size.width / 2, contentHeight * scale / 2);
+    CGAffineTransform transform = CGAffineTransformMakeScale(scale, scale);
+    // Bounds/center remain well-defined under the scale, and roll transforms remain on
+    // the child views. One transform never overwrites the other's motion.
+    if (!CGRectEqualToRect(self.canvas.bounds, canvasBounds)) self.canvas.bounds = canvasBounds;
+    if (!CGPointEqualToPoint(self.canvas.center, canvasCenter)) self.canvas.center = canvasCenter;
+    if (!CGAffineTransformEqualToTransform(self.canvas.transform, transform)) self.canvas.transform = transform;
+    self.canvasScale = scale;
     for (NSUInteger i = 0; i < 2; i++) {
         UIView *text = i == 0 ? self.lineView : self.retiring;
         if (!text) continue;
-        // Changing frame while a roll transform is active produces undefined UIKit geometry.
-        text.layer.position = sgrPreviewLinePosition(self.bounds.size, text.bounds.size, text.layer.anchorPoint);
+        CGPoint position = sgrPreviewLinePosition(layoutViewport, text.bounds.size, text.layer.anchorPoint);
+        if (!CGPointEqualToPoint(text.layer.position, position)) text.layer.position = position;
     }
-    self.scroll.contentSize = CGSizeMake(self.bounds.size.width, MAX(self.bounds.size.height, height));
+    CGSize contentSize = CGSizeMake(self.bounds.size.width, contentHeight * scale);
+    if (!CGSizeEqualToSize(self.scroll.contentSize, contentSize)) self.scroll.contentSize = contentSize;
 }
 - (void)updateLink {
     SPTPlayerState *state = SGPlayerState();
@@ -169,7 +201,6 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
         [self updateGeometry];
         if (CACurrentMediaTime() >= self.artworkUntil) {
             self.artworkUntil = 0;
-            [self refresh]; // Reflow once, after the cover settles, instead of each animation frame.
             [self updateLink];
         }
     }
@@ -204,7 +235,8 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     SGRPlayerSetPreviewLift(track, lift);
     cover = SGRPlayerCoverFrameIn(host);
     CGRect frame = CGRectIsNull(cover) ? CGRectNull : sgrPreviewFrame(cover, information, host.bounds);
-    BOOL visible = ready && !CGRectIsNull(frame);
+    CGSize textSize = sgrPreviewTextSize(SGRPlayerPreviewLayoutCoverFrameIn(host), host.bounds, needed);
+    BOOL visible = ready && !CGRectIsNull(frame) && textSize.width > 0;
     if (visible != self.showing) {
         self.showing = visible;
         // Only the surface fades. Sequential lyric lines keep their upward movement.
@@ -220,9 +252,8 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
         self.track = nil; self.lineIndex = -1; self.position = -1;
         return;
     }
-    BOOL followingArtwork = CACurrentMediaTime() < self.artworkUntil;
     BOOL sameTrack = [self.track isEqualToString:track];
-    if (!sameTrack || line != self.line || (!followingArtwork && !CGSizeEqualToSize(self.measured, frame.size)) ||
+    if (!sameTrack || line != self.line || !CGSizeEqualToSize(self.measured, textSize) ||
         ![(line.translation ?: @"") isEqualToString:(self.translation ?: @"")]) {
         BOOL rolls = sgrPreviewShouldRoll(sameTrack, self.lineIndex, index, ms - self.position,
             UIAccessibilityIsReduceMotionEnabled());
@@ -230,11 +261,10 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
         [self.retiring removeFromSuperview]; self.retiring = nil;
         UIView *outgoing = self.lineView;
         [outgoing.layer removeAllAnimations]; outgoing.transform = CGAffineTransformIdentity; outgoing.alpha = 1;
-        self.line = line; self.translation = line.translation; self.measured = frame.size;
-        self.lineView = SGRKaraokePreviewLine(line, frame.size.width, frame.size.height);
+        self.line = line; self.translation = line.translation; self.measured = textSize;
+        self.lineView = SGRKaraokePreviewLine(line, textSize.width, textSize.height);
         self.lineView.frame = (CGRect){CGPointZero, self.lineView.bounds.size};
-        [self.scroll addSubview:self.lineView];
-        self.scroll.contentSize = CGSizeMake(self.bounds.size.width, MAX(self.bounds.size.height, self.lineView.bounds.size.height));
+        [self.canvas addSubview:self.lineView];
         self.scroll.contentOffset = CGPointZero;
         [self updateGeometry];
         if (rolls && outgoing) {
@@ -243,7 +273,7 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
             // room between them, with their entry/exit outside the clipped text band.
             self.retiring = outgoing;
             [self updateGeometry];
-            CGFloat travel = sgrPreviewRollDistance(self.bounds.size.height,
+            CGFloat travel = sgrPreviewRollDistance(self.bounds.size.height / self.canvasScale,
                 outgoing.bounds.size.height, incoming.bounds.size.height);
             incoming.transform = CGAffineTransformMakeTranslation(0, travel);
             __weak SGRPlayerPreview *weakSelf = self;
