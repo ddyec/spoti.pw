@@ -10,6 +10,16 @@
 # Needs: Theos in $THEOS (default ~/theos), an iPhoneOS 26+ SDK from the selected Xcode or in $THEOS/sdks,
 # gmake, ldid, dpkg-deb (brew) and cyan (uv tool install "cyan @ git+https://github.com/asdfzxcvbn/pyzule-rw").
 set -euo pipefail
+BUILD_STARTED=$SECONDS
+BUILD_STAGE_STARTED=$SECONDS
+BUILD_STAGE="setup"
+trap 'status=$?; echo "==> total build: $((SECONDS - BUILD_STARTED))s (exit $status)"' EXIT
+stage() {
+  echo "    $BUILD_STAGE: $((SECONDS - BUILD_STAGE_STARTED))s"
+  BUILD_STAGE="$*"
+  BUILD_STAGE_STARTED=$SECONDS
+  echo "==> $BUILD_STAGE"
+}
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 THEOS="${THEOS:-$HOME/theos}"
@@ -24,13 +34,14 @@ FLEX_DEB="$ROOT/vendor/com.hopeless.autoflex_0.0.1_iphoneos-arm.deb"
 BUNDLE_ID="${BUNDLE_ID:-}"
 mkdir -p "$ROOT/out"
 
-IN="" OUT="" WITH_FLEX=1 INSTALL=0 NAME="" ICON=""
+IN="" OUT="" WITH_FLEX=1 INSTALL=0 NAME="" ICON="" COMPANION_DIR=""
 while [ $# -gt 0 ]; do
   case "$1" in
     -o) OUT="$2"; shift 2 ;;
     --name) NAME="$2"; shift 2 ;;
     --icon) ICON="$2"; shift 2 ;;
     --no-flex) WITH_FLEX=0; shift ;;
+    --companion-dir) COMPANION_DIR="$2"; shift 2 ;;
     --install) INSTALL=1; shift ;;
     -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
     *) IN="$1"; shift ;;
@@ -76,7 +87,7 @@ if [ ! -f "$ROOT/tweak/Sources/Shared/Flags/SGFlagList.m" ]; then
   "$ROOT/scripts/extract-flags.py" "$IN"
 fi
 
-echo "==> building tweak"
+stage "building tweak"
 export THEOS
 # Theos resolves its toolchain through `xcrun -sdk iphoneos`, which needs full Xcode. With only the
 # Command Line Tools installed, name the tools directly instead.
@@ -90,10 +101,19 @@ TWEAK_DEB="$(ls -t "$ROOT"/tweak/packages/*.deb | head -1)"
 echo "    $TWEAK_DEB"
 
 FILES=("$TWEAK_DEB")
+if [ -n "$COMPANION_DIR" ]; then
+  EEVEE_DYLIB="$(find "$COMPANION_DIR" -name EeveeSpotify.dylib -type f | head -1)"
+  EEVEE_FRAMEWORK="$(find "$COMPANION_DIR" -name EeveeSwiftProtobuf.framework -type d | head -1)"
+  EEVEE_BUNDLE="$(find "$COMPANION_DIR" -name EeveeSpotify.bundle -type d | head -1)"
+  [ -n "$EEVEE_DYLIB" ] && [ -n "$EEVEE_FRAMEWORK" ] && [ -n "$EEVEE_BUNDLE" ] \
+    || { echo "companion dylib, protobuf framework or resource bundle missing" >&2; exit 1; }
+  FILES+=("$EEVEE_DYLIB" "$EEVEE_FRAMEWORK" "$EEVEE_BUNDLE")
+fi
 [ "$WITH_FLEX" = 1 ] && FILES+=("$FLEX_DEB")
 
 # The Live Activity (Shared/LiveActivity) draws in a widget extension of its own.
 if xcrun --sdk iphoneos --find swiftc >/dev/null 2>&1; then
+  stage "building Live Activity extension"
   EXT_DIR="$ROOT/out/extension"
   unzip -p "$IN" "${APP_DIR}Info.plist" > "$ROOT/out/.info.plist"
   "$ROOT/scripts/build-extension.sh" "$ROOT/out/.info.plist" "$EXT_DIR"
@@ -105,13 +125,13 @@ fi
 
 # Spotify's widget reads what the app writes through App Group suites the re-signed IPA is not entitled
 # to; this dylib, loaded by the app and by the widget, puts both on a group the signature does have.
-echo "==> building the App Group shim"
+stage "building the App Group shim"
 GROUPS_DYLIB="$ROOT/out/SpotifyGlassAppGroups.dylib"
 xcrun --sdk iphoneos clang -target arm64-apple-ios16.0 -dynamiclib -fobjc-arc -Os -framework Foundation -framework Security \
   -install_name @rpath/SpotifyGlassAppGroups.dylib -o "$GROUPS_DYLIB" "$ROOT/extension/AppGroups/AppGroups.m"
 FILES+=("$GROUPS_DYLIB")
 
-echo "==> injecting"
+stage "injecting"
 # -w drops the Watch app: its companion-app key would still name com.spotify.client and block the install.
 unzip -p "$IN" "${APP_DIR}Info.plist" > "$ROOT/out/.info.plist"
 python3 "$ROOT/scripts/merge-local-network-plist.py" "$ROOT/out/.info.plist" \
@@ -120,7 +140,7 @@ rm -f "$ROOT/out/.info.plist"
 cyan -i "$IN" -o "$OUT" -f "${FILES[@]}" -l "$ROOT/out/.injection.plist" ${BUNDLE_ID:+-b "$BUNDLE_ID"} ${NAME:+-n "$NAME"} ${ICON:+-k "$ICON"} -w -s --overwrite
 rm -f "$ROOT/out/.injection.plist"
 
-echo "==> loading the App Group shim in the home screen widget"
+stage "loading the App Group shim in the home screen widget"
 WIDGET_BIN="${APP_DIR}PlugIns/WidgetExtension.appex/WidgetExtension"
 if unzip -l "$OUT" "$WIDGET_BIN" >/dev/null 2>&1; then
   PATCH="$(mktemp -d)"
@@ -136,15 +156,19 @@ else
   echo "    no WidgetExtension.appex in this IPA"
 fi
 
-echo "==> adding the alternate app icons"
+stage "adding the alternate app icons"
 # A failure leaves the IPA as it was, without them; Mod > App icon then does not show.
 "$ROOT/scripts/app-icons.sh" "$OUT" || echo "    the app icons failed: building without them"
 
 if [ -n "${EXT_DIR:-}" ]; then
-  echo "==> adding the Live Activity intents to Spotify's App Intents metadata"
+  stage "adding the Live Activity intents to Spotify's App Intents metadata"
   "$ROOT/scripts/merge-appintents.py" "$OUT" "$APP_DIR" "$EXT_DIR/app/Metadata.appintents"
 fi
 
+if [ -n "$COMPANION_DIR" ]; then
+  stage "verifying and finalizing the combined IPA"
+  python3 "$ROOT/scripts/finalize-companion.py" "$OUT"
+fi
 echo "==> done: $OUT"
 [ "$INSTALL" = 1 ] && exec "$ROOT/scripts/install.sh" "$OUT"
 exit 0

@@ -53,6 +53,7 @@
 #import "Shared/Lyrics/Lyrics.h"
 #import "Shared/Sing/SGSingController.h"
 #import "Player.h"
+#import "Diagnostics/SGPerformance.h"
 
 static const CGFloat kThumbSide = 72;          // the cover once the lyrics are up
 static const CGFloat kThumbGap = 16;           // between the thumbnail and the title beside it
@@ -64,7 +65,9 @@ static const CGFloat kLyricsBottom = 8;        // above the progress bar
 // The lines are a surface arriving, not something moving: they come up from just under full size as the
 // room for them opens, and go at once when it closes. An exit the eye waits through reads as a stall.
 static const CGFloat kLyricsEnterScale = 0.96;
-static const NSTimeInterval kLyricsIn = 0.3, kLyricsInDelay = 0.12, kLyricsOut = 0.16;
+static const NSTimeInterval kLyricsIn = 0.24, kLyricsInDelay = 0.04, kLyricsOut = 0.16;
+// The cover crosses most of the player: give the travel room to settle, rather than a short snap.
+static const NSTimeInterval kCoverOpen = 0.42, kCoverClose = 0.36;
 // A track that changes while the lines are up has this long to bring its own before they are put away.
 static const NSTimeInterval kLyricsGrace = 3;
 // Below this the player has not laid out yet and nothing can be measured from it.
@@ -81,6 +84,9 @@ static const CGFloat kThumbAppearScale = 0.8;
 static char kOverlayKey, kPlateKey, kTitleKey, kWatcherKey;
 static BOOL sg_open;
 static BOOL sg_moving;                      // the transition is in flight, so no layout pass may re-place it
+static NSUInteger sg_motionGeneration, sg_lyricsWaitGeneration;
+static BOOL sg_replaceQueued;
+static void replace(void);
 static BOOL sg_alone;                       // the controls are away and the lines have the player
 static BOOL sg_tapBroughtBack;              // the touch going on began with them away, so its tap seeks nowhere
 static NSTimer *sg_aloneTimer;
@@ -560,6 +566,12 @@ static void setOpen(BOOL open, BOOL animated) {
         setAlone(NO, animated);
         stopAloneTimer();
     }
+    BOOL reversing = sg_moving;
+    if (open && !reversing) {
+        CGRect visibleCover = SGRPlayerCoverPresentationFrameIn(host);
+        if (!CGRectIsNull(visibleCover) && !CGRectIsEmpty(visibleCover)) l.cover = visibleCover;
+    }
+    NSUInteger generation = ++sg_motionGeneration;
     sg_open = open;
     SGRPlayerLyricsChanged();
     SGRPlayerAnimatedFollowLyrics(open, animated);
@@ -572,16 +584,21 @@ static void setOpen(BOOL open, BOOL animated) {
     CGAffineTransform small = CGAffineTransformConcat(CGAffineTransformMakeScale(kThumbAppearScale, kThumbAppearScale), away);
     CGAffineTransform full = inPlace ? small : CGAffineTransformIdentity;
     // The state it starts from, so the animation has both ends of every value and nothing jumps into it.
-    overlay.thumb.transform = open ? full : away;
-    overlay.cover.layer.cornerRadius = thumbRadius(l, inPlace || !open);
+    // A reversal retargets the visible animation; resetting its model to an endpoint causes a jump.
+    if (!reversing) {
+        overlay.thumb.transform = open ? full : away;
+        overlay.cover.layer.cornerRadius = thumbRadius(l, inPlace || !open);
+    }
     if (open) {
-        overlay.thumb.alpha = inPlace ? 0 : 1;
-        overlay.cover.image = SGRNowPlayingArtwork(NULL, NULL);
-        overlay.stage.alpha = 0;
-        overlay.stage.transform = CGAffineTransformMakeScale(kLyricsEnterScale, kLyricsEnterScale);
+        if (!reversing) {
+            overlay.thumb.alpha = inPlace ? 0 : 1;
+            overlay.stage.alpha = 0;
+            overlay.stage.transform = CGAffineTransformMakeScale(kLyricsEnterScale, kLyricsEnterScale);
+        }
+        overlay.cover.image = picture;
         [overlay.lyrics setLineInsets:bandOf(l, NO) duration:0];
         placeSing(overlay, l);
-        sg_sing.alpha = 0;
+        if (!reversing) sg_sing.alpha = 0;
         // Spotify's cover goes the moment the redesign's own takes its place: the same picture at the
         // same size with the same corners, so there is nothing to see in the swap. Coming back it waits
         // for the thumbnail to land on it, or the two would be on screen at once, one of them half size.
@@ -602,22 +619,26 @@ static void setOpen(BOOL open, BOOL animated) {
         sg_sing.alpha = open ? 1 : 0;
     };
     void (^settled)(BOOL) = ^(BOOL finished) {
+        if (generation != sg_motionGeneration) return;
         sg_moving = NO;
-        if (sg_open) return;   // opened again while it was going away
+        if (sg_open) { replace(); return; }
         SGRPlayerCoverList().alpha = 1;
         [overlay removeFromSuperview];
     };
 
-    if (!animated) {
+    if (!animated || SGRReduceMotion()) {
         move();
         show();
         settled(YES);
     } else {
         sg_moving = YES;
-        SGRAnimate(SGRMotionLayout, move, settled);
+        [UIView animateWithDuration:open ? kCoverOpen : kCoverClose delay:0
+             usingSpringWithDamping:1 initialSpringVelocity:0
+             options:UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionBeginFromCurrentState
+             animations:move completion:settled];
         // The lines come in behind the cover leaving, and go before it comes back.
         [UIView animateWithDuration:open ? kLyricsIn : kLyricsOut delay:open ? kLyricsInDelay : 0
-                            options:UIViewAnimationOptionCurveEaseInOut | UIViewAnimationOptionBeginFromCurrentState
+                            options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionAllowUserInteraction
                          animations:show completion:nil];
     }
     if (open) scheduleAlone();
@@ -653,6 +674,18 @@ static void replace(void) {
     SGRPlayerCoverList().alpha = 0;
 }
 
+// The player, information, duration and floating units all report the same layout pass.
+static void scheduleReplace(void) {
+    SGPerformanceCount(SGPerformanceLyricsRequested);
+    if (sg_replaceQueued) return;
+    sg_replaceQueued = YES;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        sg_replaceQueued = NO;
+        SGPerformanceCount(SGPerformanceLyricsApplied);
+        replace();
+    });
+}
+
 #pragma mark - the units
 
 %hook _TtC19NowPlaying_ViewImpl24NowPlayingViewController
@@ -666,7 +699,7 @@ static void replace(void) {
     }
     sg_player = (UIViewController *)self;
     watchTouches(host);
-    replace();
+    scheduleReplace();
 }
 
 // The bar morphs back out of a full size cover as the player closes, so the thumbnail is put away first.
@@ -696,12 +729,12 @@ static void infoLaidOut(UIViewController *unit) {
         static dispatch_once_t once;
         dispatch_once(&once, ^{ SGLog(@"redesign player: the title rides on %@ %@", NSStringFromClass(element.class), NSStringFromCGRect(element.frame)); });
     }
-    replace();
+    scheduleReplace();
 }
 
 static void durationLaidOut(UIViewController *unit) {
     sg_duration = unit;
-    replace();
+    scheduleReplace();
 }
 
 %hook _TtC20NowPlaying_ModesImpl18HeaderElementsUnit
@@ -755,7 +788,7 @@ static void durationLaidOut(UIViewController *unit) {
 - (void)viewDidLayoutSubviews {
     %orig;
     sg_floating = (UIViewController *)self;
-    replace();
+    scheduleReplace();
 }
 %end
 
@@ -765,8 +798,13 @@ static void durationLaidOut(UIViewController *unit) {
 // the lines already up wait out the same grace before they go. Not in the background, where Spotify may
 // not ask for lyrics until the app is back, so coming back starts it over.
 static void awaitLyrics(void) {
+    NSUInteger generation = ++sg_lyricsWaitGeneration;
     for (NSNumber *delay in @[@1, @(kLyricsGrace)]) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay.doubleValue * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            if (generation != sg_lyricsWaitGeneration) {
+                SGPerformanceCount(SGPerformanceStaleLyricsWait);
+                return;
+            }
             if (UIApplication.sharedApplication.applicationState != UIApplicationStateActive) return;
             SGRPlayerLyricsChanged();
             if (sg_open && delay.doubleValue >= kLyricsGrace && !SGRPlayerLyricsAvailable()) {

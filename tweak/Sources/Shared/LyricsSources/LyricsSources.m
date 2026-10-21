@@ -115,17 +115,19 @@ static void send(NSURLRequest *request, void (^done)(NSData *body)) {
         pending[key] = [NSMutableArray arrayWithObject:[done copy]];
     }
     sendUncached(request, ^(NSData *body) {
+        // This callback runs off-main. Parsing while holding pending can block a main-thread
+        // cache lookup behind an arbitrarily large response; keep the shared lock bookkeeping-only.
+        BOOL cacheable = body.length > 0 && body.length <= 256 * 1024;
+        id json = cacheable ? [NSJSONSerialization JSONObjectWithData:body options:0 error:nil] : nil;
+        NSDictionary *object = [json isKindOfClass:NSDictionary.class] ? json : nil;
+        NSInteger code = [object[@"code"] respondsToSelector:@selector(integerValue)] ? [object[@"code"] integerValue] : 0;
+        NSDictionary *req = [object[@"req"] isKindOfClass:NSDictionary.class] ? object[@"req"] : nil;
+        BOOL appFailed = (code != 0 && code != 200) || [req[@"code"] integerValue] != 0;
         NSArray *callbacks;
         @synchronized (pending) {
             callbacks = [pending[key] copy];
             [pending removeObjectForKey:key];
-            // Bound both count and bytes; do not retain unexpectedly large responses.
-            id json = body.length ? [NSJSONSerialization JSONObjectWithData:body options:0 error:nil] : nil;
-            NSDictionary *object = [json isKindOfClass:NSDictionary.class] ? json : nil;
-            NSInteger code = [object[@"code"] respondsToSelector:@selector(integerValue)] ? [object[@"code"] integerValue] : 0;
-            NSDictionary *req = [object[@"req"] isKindOfClass:NSDictionary.class] ? object[@"req"] : nil;
-            BOOL appFailed = (code != 0 && code != 200) || [req[@"code"] integerValue] != 0;
-            if (body.length && body.length <= 256 * 1024 && !appFailed) {
+            if (cacheable && !appFailed) {
                 if (kept.count >= 32) [kept removeAllObjects];
                 kept[key] = @{@"time": @(NSDate.timeIntervalSinceReferenceDate), @"body": body};
             }

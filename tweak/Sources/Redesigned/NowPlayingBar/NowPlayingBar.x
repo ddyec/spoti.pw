@@ -15,9 +15,10 @@
 #import "Redesigned/Kit/SGRRepaint.h"
 #import "Redesigned/Navbar/Navbar.h"
 #import "NowPlayingBar.h"
+#import "Diagnostics/SGPerformance.h"
 
 static const CGFloat kCardRadius = 24;
-static char kGlassKey;
+static char kGlassKey, kStyleQueuedKey;
 static __weak UIVisualEffectView *sg_cardGlass;
 static __weak UIView *sg_cardArtwork;
 static __weak UIView *sg_barContainer;
@@ -205,10 +206,28 @@ static void styleNowPlayingBar(UIViewController *container) {
     });
 }
 
+// Parent and child both lay out in one UIKit pass. Walk their shared tree once after that pass.
+// The marker is per container, so a newly created bar never loses its first style pass.
+static void scheduleBarStyle(UIViewController *container) {
+    SGPerformanceCount(SGPerformanceBarRequested);
+    if (!container || objc_getAssociatedObject(container, &kStyleQueuedKey)) return;
+    objc_setAssociatedObject(container, &kStyleQueuedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    __weak UIViewController *weakContainer = container;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIViewController *current = weakContainer;
+        if (!current) return;
+        objc_setAssociatedObject(current, &kStyleQueuedKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        if (current.viewIfLoaded.window) {
+            SGPerformanceCount(SGPerformanceBarApplied);
+            styleNowPlayingBar(current);
+        }
+    });
+}
+
 %hook _TtC18NowPlaying_BarImpl36NowPlayingBarContainerViewController
 - (void)viewDidLayoutSubviews {
     %orig;
-    styleNowPlayingBar((UIViewController *)self);
+    scheduleBarStyle((UIViewController *)self);
 }
 %end
 
@@ -216,7 +235,7 @@ static void styleNowPlayingBar(UIViewController *container) {
 - (void)viewDidLayoutSubviews {
     %orig;
     UIViewController *parent = ((UIViewController *)self).parentViewController;
-    if ([NSStringFromClass(parent.class) containsString:@"NowPlayingBarContainer"]) styleNowPlayingBar(parent);
+    if ([NSStringFromClass(parent.class) containsString:@"NowPlayingBarContainer"]) scheduleBarStyle(parent);
 }
 %end
 

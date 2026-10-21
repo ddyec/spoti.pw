@@ -29,6 +29,15 @@ unzip -q "$OUT" "${APP_DIR}Assets.car" "${APP_DIR}Info.plist" -d "$WORK"
 CAR="$WORK/${APP_DIR}Assets.car"
 PLIST="$WORK/${APP_DIR}Info.plist"
 
+CACHE_STATUS=0
+python3 "$ROOT/scripts/app-icon-cache.py" restore "$WORK" "$APP_DIR" || CACHE_STATUS=$?
+[ "$CACHE_STATUS" != 3 ] || skip "previous catalog validation failed for the same assets and Xcode"
+if [ "$CACHE_STATUS" = 0 ]; then
+  (cd "$WORK" && zip -q "$OUT_ABS" "${APP_DIR}Assets.car" "${APP_DIR}Info.plist" "${APP_DIR}SGAppIconPreviews/"*.png)
+  exit 0
+fi
+
+
 xcrun clang -fobjc-arc -framework Foundation -F/System/Library/PrivateFrameworks -framework CoreUI -lcompression \
   "$ROOT/scripts/car-tool.m" -o "$WORK/car-tool" 2>/dev/null || skip "car-tool did not build"
 "$WORK/car-tool" svg "$CAR" AppIcon_Assets/Logo "$WORK/Logo.svg" || skip "no logo in Spotify's icon"
@@ -70,7 +79,10 @@ for SUFFIX in "" 2 3 4 5 6 7 8; do
 done
 [ "$MERGED" = 1 ] || skip "every name collided with one of Spotify's"
 xcrun assetutil -U "$WORK/merged.car" -o "$WORK/indexed.car" >/dev/null
-xcrun assetutil -Z "$WORK/indexed.car" >/dev/null || skip "the merged catalog did not validate"
+if ! xcrun assetutil -Z "$WORK/indexed.car" >/dev/null; then
+  python3 "$ROOT/scripts/app-icon-cache.py" unavailable "$WORK" "$APP_DIR" "merged catalog validation failed"
+  skip "the merged catalog did not validate"
+fi
 mv "$WORK/indexed.car" "$CAR"
 
 python3 - "$PLIST" "$SUFFIX" "${NAMES[@]}" <<'EOF'
@@ -86,4 +98,5 @@ with open(path, "wb") as f:
 EOF
 
 (cd "$WORK" && zip -q "$OUT_ABS" "${APP_DIR}Assets.car" "${APP_DIR}Info.plist" "${APP_DIR}SGAppIconPreviews/"*.png)
+python3 "$ROOT/scripts/app-icon-cache.py" save "$WORK" "$APP_DIR"
 echo "    ${NAMES[*]}${SUFFIX:+ (compiled as SGAppIcon<Name>$SUFFIX)}"

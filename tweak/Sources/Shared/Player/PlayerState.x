@@ -1,6 +1,7 @@
 // PlayerState.h names the hooks and why they are the ones.
 #import "Core/SGCore.h"
 #import "PlayerState.h"
+#import "Diagnostics/SGPerformance.h"
 
 NSString *SGURIString(id uri) {
     if ([uri isKindOfClass:NSString.class]) return uri;
@@ -37,6 +38,7 @@ static void publish(SPTPlayerState *state) {
     NSString *key = keyOf(state);
     if ([key isEqualToString:sg_stateKey]) return;
     sg_stateKey = key;
+    SGPerformanceSetPlaybackState(state.isPlaying, state.isPaused, [state respondsToSelector:@selector(isLoading)] && state.isLoading);
     for (id<SGPlayerStateObserver> observer in sg_stateObservers.allObjects) [observer playerStateDidChange:state];
 }
 

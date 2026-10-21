@@ -11,3 +11,8 @@
 // Runs the sampler until the matching stop, or for `seconds` when that is above 0 (no stop then).
 void SGHangSamplerStart(NSString *reason, NSTimeInterval seconds);
 void SGHangSamplerStop(void);
+
+// Opt-in performance diagnostics, foreground only. At most 24 stack records per process.
+void SGHangSamplerSetPerformanceEnabled(BOOL enabled);
+NSArray<NSDictionary *> *SGHangSamplerSnapshot(void);
+void SGHangSamplerClear(void);

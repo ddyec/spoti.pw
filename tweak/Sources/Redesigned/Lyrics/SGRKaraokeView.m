@@ -13,6 +13,8 @@
 #import "MeaningSheet.h"
 #import "Shared/LyricsSources/LyricsSources.h"
 #import "Shared/Player/PlayerEvents.h"
+#import "Shared/Player/PlayerState.h"
+#import "Diagnostics/SGPerformance.h"
 #import "Shared/Haptics/Haptics.h"
 #import "Redesigned/Kit/SGRTokens.h"
 
@@ -855,11 +857,11 @@ static const NSUInteger kLinesPerFrame = 4;
 UIView *SGRKaraokePreviewLine(SGKaraokeLine *line, CGFloat width, CGFloat height) {
     NSArray *order = @[@(SGRLyricsTextLyrics), @(SGRLyricsTextTranslation)];
     SGRKaraokeStyle *chosen = nil;
-    for (NSUInteger pass = 0; pass < 2 && !chosen; pass++) {
-        for (CGFloat size = 24; size >= 20; size--) {
-            SGRKaraokeStyle *style = [[SGRKaraokeStyle alloc] initWithSize:size order:order pronunciation:NO translation:pass == 0];
-            if (layOut(line, width, style, -1).height <= height || (pass == 1 && size == 20)) { chosen = style; break; }
-        }
+    for (CGFloat size = 24; size >= 20; size--) {
+        SGRKaraokeStyle *style = [[SGRKaraokeStyle alloc] initWithSize:size order:order pronunciation:NO translation:YES];
+        // Keep supplied translations even for unusually long groups. The preview already
+        // scrolls vertically when the minimum readable type cannot fit its reserved band.
+        if (layOut(line, width, style, -1).height <= height || size == 20) { chosen = style; break; }
     }
     SGRKaraokeLineView *view = [[SGRKaraokeLineView alloc] initWithLine:line width:width style:chosen under:nil blurred:NO
         sweepsEstimates:SGFlag(SGKeyLyricsSimulateWords, NO)];
@@ -1051,13 +1053,15 @@ typedef struct {
     NSInteger start, end, line;
 } SGRKaraokeBreak;
 
-@interface SGRKaraokeView () <UIScrollViewDelegate>
+@interface SGRKaraokeView () <UIScrollViewDelegate, SGPlayerStateObserver>
 @end
 
 @implementation SGRKaraokeView {
     UIScrollView *_scroll;
     BOOL _browsing;
     CADisplayLink *_link;
+    NSTimer *_idleTimer;
+    CFTimeInterval _smoothUntil;
     NSString *_track;
     NSArray<SGKaraokeLine *> *_lines;
     // The song is placed from its lines' heights alone; views exist for the lines in and near sight.
@@ -1149,11 +1153,13 @@ typedef struct {
     // away rather than by the view going: see scheduleLink.
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(scheduleLink) name:UIApplicationDidBecomeActiveNotification object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(scheduleLink) name:UIApplicationWillResignActiveNotification object:nil];
+    SGAddPlayerStateObserver(self);
     return self;
 }
 
 - (void)dealloc {
     [NSNotificationCenter.defaultCenter removeObserver:self];
+    [_idleTimer invalidate];
     free(_spans);
     free(_breaks);
 }
@@ -1219,12 +1225,15 @@ typedef struct {
 // Lines are placed for a content offset of 0, so following the song means scrolling back to 0.
 // While the user browses, placement stands still and every line is sharp.
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
+    _smoothUntil = CACurrentMediaTime() + 1.2;
+    [self scheduleLink];
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(followSong) object:nil];
     _browsing = YES;
     for (SGRKaraokeLineView *view in _shown.allValues) view.blur = 0;
 }
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+    [self alignFade];
     [self showLinesInSight];
 }
 
@@ -1241,6 +1250,8 @@ typedef struct {
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(followSong) object:nil];
     if (!_browsing) return;
     _browsing = NO;
+    _smoothUntil = CACurrentMediaTime() + 1.2;
+    [self scheduleLink];
     [UIView animateWithDuration:0.7 delay:0 usingSpringWithDamping:0.9 initialSpringVelocity:0
                         options:UIViewAnimationOptionAllowUserInteraction
                      animations:^{ self->_scroll.contentOffset = CGPointZero; } completion:nil];
@@ -1271,15 +1282,34 @@ typedef struct {
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(startLink) object:nil];
     [_link invalidate];
     _link = nil;
+    [_idleTimer invalidate]; _idleTimer = nil;
     if (!self.window) return;
     NSTimeInterval wait = SGPlayerTransitionEnds() - CACurrentMediaTime();
     if (wait <= 0) [self startLink];
     else [self performSelector:@selector(startLink) withObject:nil afterDelay:wait + kTransitionSlack inModes:@[NSRunLoopCommonModes]];
 }
 
+- (BOOL)needsSmoothTicks {
+    SPTPlayerState *state = SGPlayerState();
+    return (_tops && !_plain && state.isPlaying && !state.isPaused) ||
+        _scroll.isDragging || _scroll.isDecelerating || CACurrentMediaTime() < _smoothUntil;
+}
+
+- (void)playerStateDidChange:(SPTPlayerState *)state {
+    // Let an in-flight line/cover movement finish before parking the high-frequency clock.
+    _smoothUntil = CACurrentMediaTime() + 1.2;
+    [self scheduleLink];
+}
+
 - (void)startLink {
-    if (!self.window || _link) return;
+    if (!self.window || _link || _idleTimer) return;
     if (UIApplication.sharedApplication.applicationState != UIApplicationStateActive) return;
+    if (![self needsSmoothTicks]) {
+        __weak SGRKaraokeView *weakSelf = self;
+        _idleTimer = [NSTimer timerWithTimeInterval:0.25 repeats:YES block:^(NSTimer *timer) { [weakSelf tick]; }];
+        [NSRunLoop.mainRunLoop addTimer:_idleTimer forMode:NSRunLoopCommonModes];
+        return;
+    }
     _link = [CADisplayLink displayLinkWithTarget:self selector:@selector(tick)];
     _link.preferredFrameRateRange = CAFrameRateRangeMake(80, 120, 120);
     [_link addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
@@ -1337,6 +1367,10 @@ typedef struct {
 - (void)setLineInsets:(UIEdgeInsets)insets duration:(NSTimeInterval)duration {
     if (UIEdgeInsetsEqualToEdgeInsets(insets, _band)) return;
     BOOL animated = duration > 0 && self.window && !SGRReduceMotion();
+    if (animated) {
+        _smoothUntil = CACurrentMediaTime() + duration + 0.2;
+        [self scheduleLink];
+    }
     _bandFrom = animated ? [self shownBand] : insets;
     _bandSince = CACurrentMediaTime();
     _bandFor = animated ? duration : 0;
@@ -1726,7 +1760,7 @@ typedef struct {
 // corrections. A seek or a new track is too far off to ease and is taken at once.
 - (double)clockMs {
     NSInteger raw = SGKaraokePositionMs();
-    CFTimeInterval shown = _link.targetTimestamp;
+    CFTimeInterval shown = _link ? _link.targetTimestamp : CACurrentMediaTime();
     BOOL running = raw != _reported;   // a paused player reports the same position every frame
     if (running) _stillSince = 0;
     else if (!_stillSince) _stillSince = shown;
@@ -1740,6 +1774,8 @@ typedef struct {
 }
 
 - (void)tick {
+    SGPerformanceCount(SGPerformanceLyricsTick);
+    if ((_link != nil) != [self needsSmoothTicks]) [self scheduleLink];
     NSString *track = SGKaraokePlayingTrack();
     if (!(track == _track || [track isEqualToString:_track])) {
         SGLog(@"karaoke: page shows track %@, lyrics %@", track, SGKaraokeLinesForTrack(track) ? @"captured" : @"not captured yet");
@@ -1800,7 +1836,7 @@ typedef struct {
         [self showLinesInSight];   // the page may be scrolling by hand, or springing back
     }
     for (NSUInteger i = 0; i < _sungCount; i++) [_shown[@(_sung[i])] showTime:now];
-    if (_dots.superview) [_dots showTime:now running:!_stillSince || _link.targetTimestamp - _stillSince < kStillFor at:_link.targetTimestamp];
+    if (_dots.superview) [_dots showTime:now running:!_stillSince || _clockTime - _stillSince < kStillFor at:_clockTime];
 }
 
 // What is sung at `now`: each line from its start until it is sung out, so two voices over each

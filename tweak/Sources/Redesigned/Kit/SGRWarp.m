@@ -662,6 +662,7 @@ static NSUInteger sg_costLogs;
     NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
     for (NSNotificationName name in @[UIApplicationDidBecomeActiveNotification, UIApplicationWillResignActiveNotification,
                                       UIApplicationDidEnterBackgroundNotification, UIApplicationWillEnterForegroundNotification,
+                                      NSProcessInfoPowerStateDidChangeNotification, NSProcessInfoThermalStateDidChangeNotification,
                                       UIAccessibilityReduceMotionStatusDidChangeNotification]) {
         [center addObserver:self selector:@selector(updatePace) name:name object:nil];
     }
@@ -682,11 +683,18 @@ static NSUInteger sg_costLogs;
 }
 
 - (void)updatePace {
+    // Process power/thermal notifications may arrive off-main; UIKit and layer state stay on main.
+    if (!NSThread.isMainThread) {
+        __weak SGRWarpView *weakSelf = self;
+        dispatch_async(dispatch_get_main_queue(), ^{ [weakSelf updatePace]; });
+        return;
+    }
     UIApplicationState state = UIApplication.sharedApplication.applicationState;
     SGRWarpPace pace = SGRWarpPaceMoving;
     if (!self.window || state == UIApplicationStateBackground) pace = SGRWarpPaceHidden;
     else if (state != UIApplicationStateActive) pace = SGRWarpPaceFrozen;
-    else if (SGRReduceMotion()) pace = SGRWarpPaceStill;
+    else if (SGRReduceMotion() || NSProcessInfo.processInfo.lowPowerModeEnabled ||
+             NSProcessInfo.processInfo.thermalState >= NSProcessInfoThermalStateSerious) pace = SGRWarpPaceStill;
     self.warpLayer.pace = pace;
 }
 
