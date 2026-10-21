@@ -197,7 +197,10 @@ static SGPerformanceMonitor *monitor(void) {
     dispatch_once(&once, ^{ value = [SGPerformanceMonitor new]; });
     return value;
 }
-void SGPerformanceStart(void) { [monitor() refresh]; }
+void SGPerformanceStart(void) {
+    // An opted-out launch creates no monitor, reads no history and starts no diagnostic work.
+    if (SGFlag(SGKeyPerformance, NO)) [monitor() refresh];
+}
 void SGPerformanceRefresh(void) { [monitor() refresh]; }
 NSDictionary *SGPerformanceSnapshot(void) {
     SGPerformanceMonitor *m = monitor();

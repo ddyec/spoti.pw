@@ -1,6 +1,7 @@
 #import "PerformancePage.h"
 #import "Core/SGCore.h"
 #import "Settings/SGModPage.h"
+#import "Settings/SGPageStyle.h"
 #import "Diagnostics/SGPerformance.h"
 
 static void message(NSString *title, NSString *text) {

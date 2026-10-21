@@ -45,12 +45,15 @@ jobs:
           echo 'dc1706972885217081b3a9debcf07e3a5762a5d59ef5873aa2533ebd8bd719b5  ipa/spotify.ipa' | shasum -a 256 -c -
           python3 scripts/extract-flags.py ipa/spotify.ipa
       - name: Compile the full tweak
-        run: gmake -C tweak package
+        run: gmake -C tweak -k package
       - name: Compile the player animation harness
+        id: harness
+        if: ${{ !cancelled() }}
         env:
           HARNESS_ARCH: x86_64
         run: sh harness/player/build.sh
       - name: Record and check rapid lyric reversals
+        if: ${{ !cancelled() && steps.harness.outcome == 'success' }}
         run: |
           mkdir -p out/motion
           DEVICE="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for group in d["devices"].values() for x in group if x["name"].startswith("iPhone")))')"
