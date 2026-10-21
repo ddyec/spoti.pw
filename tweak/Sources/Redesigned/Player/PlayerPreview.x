@@ -49,6 +49,17 @@ static CGRect sgrPreviewViewport(CGRect gap, CGFloat textHeight) {
     return CGRectMake(gap.origin.x, gap.origin.y + (gap.size.height - height) / 2, gap.size.width, height);
 }
 
+// Karaoke line views anchor at their leading/trailing edge, not at (0.5, 0.5).
+// Position the layer's anchor so the untransformed text starts at x=0 in the viewport.
+static CGPoint sgrPreviewLinePosition(CGSize viewport, CGSize text, CGPoint anchor) {
+    return CGPointMake(text.width * anchor.x,
+        MAX(0, (viewport.height - text.height) / 2) + text.height * anchor.y);
+}
+
+static CGFloat sgrPreviewRollDistance(CGFloat viewportHeight, CGFloat outgoingHeight, CGFloat incomingHeight) {
+    return MAX(viewportHeight, MAX(outgoingHeight, incomingHeight)) + 8;
+}
+
 static BOOL sgrPreviewShouldRoll(BOOL sameTrack, NSInteger oldIndex, NSInteger newIndex,
                                  NSInteger elapsed, BOOL reducedMotion) {
     return sameTrack && oldIndex >= 0 && newIndex == oldIndex + 1 &&
@@ -131,7 +142,7 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
         UIView *text = i == 0 ? self.lineView : self.retiring;
         if (!text) continue;
         // Changing frame while a roll transform is active produces undefined UIKit geometry.
-        text.center = CGPointMake(text.bounds.size.width / 2, MAX(self.bounds.size.height, text.bounds.size.height) / 2);
+        text.layer.position = sgrPreviewLinePosition(self.bounds.size, text.bounds.size, text.layer.anchorPoint);
     }
     self.scroll.contentSize = CGSizeMake(self.bounds.size.width, MAX(self.bounds.size.height, height));
 }
@@ -228,34 +239,28 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
         [self updateGeometry];
         if (rolls && outgoing) {
             UIView *incoming = self.lineView;
-            // Exit, then enter: two full multi-line groups never pass through each other.
-            CGFloat travel = MIN(16, self.bounds.size.height / 3);
-            incoming.alpha = 0;
-            incoming.transform = CGAffineTransformMakeTranslation(0, travel);
+            // Both groups move upward on one timeline. Keep a full group plus breathing
+            // room between them, with their entry/exit outside the clipped text band.
             self.retiring = outgoing;
             [self updateGeometry];
+            CGFloat travel = sgrPreviewRollDistance(self.bounds.size.height,
+                outgoing.bounds.size.height, incoming.bounds.size.height);
+            incoming.transform = CGAffineTransformMakeTranslation(0, travel);
             __weak SGRPlayerPreview *weakSelf = self;
-            [UIView animateWithDuration:0.12 delay:0 options:UIViewAnimationOptionCurveEaseIn | UIViewAnimationOptionAllowUserInteraction
+            [UIView animateWithDuration:0.28 delay:0 options:UIViewAnimationOptionCurveEaseInOut | UIViewAnimationOptionAllowUserInteraction
                 animations:^{
-                    outgoing.alpha = 0;
                     outgoing.transform = CGAffineTransformMakeTranslation(0, -travel);
+                    incoming.transform = CGAffineTransformIdentity;
                 } completion:^(BOOL finished) {
                     [outgoing removeFromSuperview];
                     SGRPlayerPreview *preview = weakSelf;
                     if (!preview || preview.transitionID != transition) return;
                     preview.retiring = nil;
                     [preview updateGeometry];
-                    [UIView animateWithDuration:0.16 delay:0 options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction
-                        animations:^{ incoming.alpha = 1; incoming.transform = CGAffineTransformIdentity; } completion:nil];
                 }];
-        } else {
-            [outgoing removeFromSuperview];
-            if (sameTrack && !UIAccessibilityIsReduceMotionEnabled()) {
-                self.lineView.alpha = 0;
-                [UIView animateWithDuration:0.16 animations:^{ self.lineView.alpha = 1; }];
-            }
-        }
+        } else [outgoing removeFromSuperview];
     }
+
     self.track = track; self.lineIndex = index; self.position = ms;
     [self animateText];
     [self updateGeometry];

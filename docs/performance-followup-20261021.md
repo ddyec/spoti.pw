@@ -19,8 +19,8 @@ or visually verified motion is made without the owner's next device run.
 
 - Preserve anchoring under the scaled artwork. Follow its presentation geometry during a
   bounded spring interval, without repeatedly reflowing text mid-animation.
-- Clip lyric groups to the text band; let the outgoing group finish its brief upward fade
-  before admitting the incoming group. Superseded completions cannot restart old transitions.
+- Clip lyric groups to the text band and move outgoing/incoming groups upward together,
+  separated by a complete group height plus spacing. Superseded completions cannot restart old transitions.
 - Full lyrics use a four-per-second metadata/position check while paused, static or awaiting
   data. High-frequency rendering resumes for timed playback and transient interactions;
   app inactivity and removal from the window stop both clocks.
@@ -54,3 +54,15 @@ failed the existing CoreUI catalog validation (159 seconds); the shipped IPA the
 the original icon. The build-only follow-up caches this unsupported outcome for the exact
 source assets, templates and Xcode, so later runs can avoid the repeated failed work. An
 asset/template/tool change invalidates it and retries; successful output is also cached.
+
+## Preview alignment regression fix
+
+The owner’s next screenshot revealed a half-width shift and right-side truncation. Karaoke line
+views use a leading/trailing layer anchor (x=0 or x=1), but the preview follower positioned them
+as though that anchor were centered. Positioning now accounts for the actual anchor point,
+without setting frame under an active transform. Sequential lines use the same simultaneous
+upward movement throughout the 280 ms transition; no root crossfade replaces that motion.
+Regression checks reconstruct the rendered bounds for left/center/right anchors at playing
+and paused widths, and verify that mixed single/multi-line groups cannot intersect throughout
+the upward transition. A mutation using the previous center assumption fails these checks.
+Visual acceptance remains on the owner’s device; no simulator or recording is used.

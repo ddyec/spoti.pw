@@ -81,6 +81,41 @@ int main(void) {
             check(fabs(CGRectGetMidY(viewport) - CGRectGetMidY(bilingualRect)) < 0.001, @"short and bilingual lines keep the same anchor");
             check(viewport.size.height <= groupHeight, @"empty artwork gap cannot expose an extra lyric group");
         }
+        // Reconstruct the visible rectangle from the layer's actual edge anchor. The previous
+        // outer-frame-only checks missed a half-width displacement inside that rectangle.
+        for (NSNumber *width in @[@298, @354, @425]) {
+            CGSize viewport = CGSizeMake(width.doubleValue, 88);
+            for (NSNumber *edge in @[@0, @0.5, @1]) {
+                CGPoint anchor = CGPointMake(edge.doubleValue, 0.5);
+                for (NSNumber *height in @[@28, @56, @84, @140]) {
+                    CGSize text = CGSizeMake(viewport.width, height.doubleValue);
+                    CGPoint position = sgrPreviewLinePosition(viewport, text, anchor);
+                    CGRect rendered = CGRectMake(position.x - anchor.x * text.width,
+                        position.y - anchor.y * text.height, text.width, text.height);
+                    check(fabs(CGRectGetMinX(rendered)) < 0.001 &&
+                        fabs(CGRectGetMaxX(rendered) - viewport.width) < 0.001,
+                        @"left, centered and right anchored lyrics retain their entire horizontal width");
+                    check(CGRectGetMinY(rendered) >= 0 && (text.height > viewport.height ||
+                        fabs(CGRectGetMidY(rendered) - viewport.height / 2) < 0.001),
+                        @"short and translated lyric groups stay vertically placed inside their viewport");
+                    for (NSNumber *nextHeight in @[@28, @56, @84, @140]) {
+                        CGSize next = CGSizeMake(viewport.width, nextHeight.doubleValue);
+                        CGPoint nextPosition = sgrPreviewLinePosition(viewport, next, anchor);
+                        CGFloat oldTop = CGRectGetMinY(rendered), newTop = nextPosition.y - anchor.y * next.height;
+                        CGFloat travel = sgrPreviewRollDistance(viewport.height, text.height, next.height);
+                        check(newTop + travel >= viewport.height && oldTop + text.height - travel <= 0,
+                            @"incoming starts below clip and outgoing finishes above clip");
+                        for (NSUInteger frame = 0; frame <= 60; frame++) {
+                            CGFloat progress = frame / 60.0;
+                            CGFloat oldBottom = oldTop + text.height - travel * progress;
+                            CGFloat newStart = newTop + travel * (1 - progress);
+                            check(newStart - oldBottom >= 7.999,
+                                @"simultaneous upward transition never intersects lyric groups at any progress");
+                        }
+                    }
+                }
+            }
+        }
         check(sgrPreviewShouldRoll(YES, 2, 3, 250, NO), @"sequential lyric change rolls upward");
         check(!sgrPreviewShouldRoll(YES, 3, 2, 250, NO) && !sgrPreviewShouldRoll(YES, 2, 5, 250, NO), @"seeks do not replay intermediate lines");
         check(!sgrPreviewShouldRoll(NO, 2, 3, 250, NO) && !sgrPreviewShouldRoll(YES, 2, 3, 250, YES), @"track change and reduced motion do not animate");
