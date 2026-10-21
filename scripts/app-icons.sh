@@ -29,6 +29,12 @@ unzip -q "$OUT" "${APP_DIR}Assets.car" "${APP_DIR}Info.plist" -d "$WORK"
 CAR="$WORK/${APP_DIR}Assets.car"
 PLIST="$WORK/${APP_DIR}Info.plist"
 
+if python3 "$ROOT/scripts/app-icon-cache.py" restore "$WORK" "$APP_DIR"; then
+  (cd "$WORK" && zip -q "$OUT_ABS" "${APP_DIR}Assets.car" "${APP_DIR}Info.plist" "${APP_DIR}SGAppIconPreviews/"*.png)
+  exit 0
+fi
+
+
 xcrun clang -fobjc-arc -framework Foundation -F/System/Library/PrivateFrameworks -framework CoreUI -lcompression \
   "$ROOT/scripts/car-tool.m" -o "$WORK/car-tool" 2>/dev/null || skip "car-tool did not build"
 "$WORK/car-tool" svg "$CAR" AppIcon_Assets/Logo "$WORK/Logo.svg" || skip "no logo in Spotify's icon"
@@ -86,4 +92,5 @@ with open(path, "wb") as f:
 EOF
 
 (cd "$WORK" && zip -q "$OUT_ABS" "${APP_DIR}Assets.car" "${APP_DIR}Info.plist" "${APP_DIR}SGAppIconPreviews/"*.png)
+python3 "$ROOT/scripts/app-icon-cache.py" save "$WORK" "$APP_DIR"
 echo "    ${NAMES[*]}${SUFFIX:+ (compiled as SGAppIcon<Name>$SUFFIX)}"

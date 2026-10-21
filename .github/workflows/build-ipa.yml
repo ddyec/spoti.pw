@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 env:
   THEOS: ${{ github.workspace }}/theos
@@ -27,12 +28,6 @@ jobs:
           xcode-version: latest-stable
       - uses: actions/checkout@v5
         with:
-          repository: ddyec/EeveeSpotifyReincarnated
-          ref: ${{ env.COMPANION_SHA }}
-          path: companion
-          submodules: recursive
-      - uses: actions/checkout@v5
-        with:
           repository: theos/theos
           path: theos
           submodules: recursive
@@ -47,20 +42,62 @@ jobs:
           mkdir -p ipa
           curl -fL --retry 3 "$IPA_URL" -o ipa/spotify.ipa
           echo 'dc1706972885217081b3a9debcf07e3a5762a5d59ef5873aa2533ebd8bd719b5  ipa/spotify.ipa' | shasum -a 256 -c -
-      - name: Compile EV1 from pinned source
-        working-directory: companion
+      - name: Restore EV1 components
+        id: ev1-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/ev1
+          key: ev1-ios-arm64-v1-${{ env.COMPANION_SHA }}
+      - name: Reuse the verified companion build
+        id: reuse-ev1
+        if: steps.ev1-cache.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh run download 39535067735 -R ddyec/spoti.pw -n Spotify-9.1.78-Performance-EV1 -D "$RUNNER_TEMP/previous"; then
+            python3 scripts/reuse-companion.py "$RUNNER_TEMP/previous" "$RUNNER_TEMP/ev1" "$COMPANION_SHA"
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v5
+        if: steps.ev1-cache.outputs.cache-hit != 'true' && steps.reuse-ev1.outputs.ready != 'true'
+        with:
+          repository: ddyec/EeveeSpotifyReincarnated
+          ref: ${{ env.COMPANION_SHA }}
+          path: companion
+          submodules: recursive
+      - name: Compile EV1 only when no verified components are available
         env:
           SWIFTPROTOBUF_VERSION: '1.29.0'
         run: |
+          if [ -f "$RUNNER_TEMP/ev1/.source-commit" ]; then
+            test "$(cat "$RUNNER_TEMP/ev1/.source-commit")" = "$COMPANION_SHA"
+            exit 0
+          fi
+          cd companion
           make build-eeveeswiftprotobuf
           THEOS_PACKAGE_SCHEME=rootless make -j3 package FINALPACKAGE=1
           mkdir -p "$RUNNER_TEMP/ev1"
           DEB="$(find packages -name '*.deb' -type f | head -1)"
           test -n "$DEB"
           dpkg-deb -x "$DEB" "$RUNNER_TEMP/ev1"
+          echo "$COMPANION_SHA" > "$RUNNER_TEMP/ev1/.source-commit"
+      - name: Restore generated flags and icons
+        uses: actions/cache@v4
+        with:
+          path: |
+            tweak/Sources/Shared/Flags/SGFlagList.m
+            .build-cache/app-icons
+          key: generated-9.1.78-v1-${{ runner.os }}-${{ hashFiles('scripts/extract-flags.py', 'scripts/app-icons.sh', 'scripts/app-icon-cache.py', 'scripts/car-tool.m', 'icons/**') }}
+      - name: Check layers, timing and lyric layout
+        run: |
+          scripts/check-layers.sh
+          bash scripts/test-performance.sh
+          python3 scripts/test-lyrics-identity.py
       - name: Build the combined IPA
         run: |
+          started=$SECONDS
           scripts/pipeline.sh ipa/spotify.ipa --no-flex --companion-dir "$RUNNER_TEMP/ev1" -o out/Spotify-9.1.78-Performance-EV1.ipa
+          echo "Combined IPA build: $((SECONDS - started)) seconds" >> "$GITHUB_STEP_SUMMARY"
           python3 - <<'PY'
           import hashlib, json, os, subprocess
           from pathlib import Path

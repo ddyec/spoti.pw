@@ -195,7 +195,10 @@ static void scaleEveryCover(BOOL animated) {
     void (^apply)(void) = ^{
         for (UIView *tilt in tilts) scaleCover(tilt, scale);
     };
-    if (animated) SGRAnimate(SGRMotionLayout, apply, nil);
+    if (animated) {
+        SGRAnimate(SGRMotionLayout, apply, nil);
+        SGRPlayerPreviewArtworkWillAnimate();
+    }
     else apply();
 }
 
@@ -203,7 +206,7 @@ void SGRPlayerSetPreviewLift(NSString *trackID, CGFloat lift) {
     lift = MAX(0, lift);
     if ((sg_previewLiftTrack == trackID || [sg_previewLiftTrack isEqualToString:trackID]) && fabs(sg_previewLift - lift) < 0.5) return;
     sg_previewLiftTrack = [trackID copy]; sg_previewLift = lift;
-    scaleEveryCover(NO);
+    scaleEveryCover(YES);
 }
 
 %hook _TtC35CreativeWorkCommons_CoverArtTiltKit16CoverArtTiltView

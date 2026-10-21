@@ -97,6 +97,8 @@ UIView *SGRPlayerCoverList(void);
 CGRect SGRPlayerCoverFrameIn(UIView *host);
 // A preview-only vertical compensation; the upstream paused scale is unchanged.
 CGFloat SGRPlayerPreviewLift(void);
+// A bounded presentation-layer follower for artwork springs, including pause/resume reversal.
+void SGRPlayerPreviewArtworkWillAnimate(void);
 CGRect SGRPlayerCoverPresentationFrameIn(UIView *host);
 void SGRPlayerSetPreviewLift(NSString *trackID, CGFloat lift);
 // The band that cover sits in -- the room the player gives its artwork, between the header row and the

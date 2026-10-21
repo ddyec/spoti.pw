@@ -75,6 +75,12 @@ int main(void) {
             check(SGNativeLyricsVerdict(status.integerValue, NO, YES, NO) == -1, @"auth/rate/server errors stay unknown");
         check(SGNativeLyricsVerdict(200, NO, NO, NO) == -1 && SGNativeLyricsVerdict(404, YES, NO, NO) == -1,
             @"malformed JSON and transport failure never mean no lyrics");
+        for (CGFloat groupHeight = 24; groupHeight <= 160; groupHeight += 8) {
+            CGRect viewport = sgrPreviewViewport(bilingualRect, groupHeight);
+            check(CGRectContainsRect(bilingualRect, viewport), @"transition viewport never intersects artwork or controls");
+            check(fabs(CGRectGetMidY(viewport) - CGRectGetMidY(bilingualRect)) < 0.001, @"short and bilingual lines keep the same anchor");
+            check(viewport.size.height <= groupHeight, @"empty artwork gap cannot expose an extra lyric group");
+        }
         check(sgrPreviewShouldRoll(YES, 2, 3, 250, NO), @"sequential lyric change rolls upward");
         check(!sgrPreviewShouldRoll(YES, 3, 2, 250, NO) && !sgrPreviewShouldRoll(YES, 2, 5, 250, NO), @"seeks do not replay intermediate lines");
         check(!sgrPreviewShouldRoll(NO, 2, 3, 250, NO) && !sgrPreviewShouldRoll(YES, 2, 3, 250, YES), @"track change and reduced motion do not animate");
