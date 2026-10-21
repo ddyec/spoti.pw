@@ -44,3 +44,13 @@ at least one minute each of timed playback, pause after animations settle, and b
 export before leaving the session. Playback-state fields and callback-count differences show
 which clock was active; stack records identify any captured loading stalls. Save a fresh
 baseline only in a stable matching scenario. Actual heat and CPU reduction need those runs.
+
+## Packaging results
+
+Runtime build db9c0cb completed in 7m23s (workflow 39542029484), including 325 seconds
+in the combined packaging pipeline. EV1 and generated flags were reused. Compilation,
+Foundation regressions and combined IPA validation passed. Alternate icon generation still
+failed the existing CoreUI catalog validation (159 seconds); the shipped IPA therefore keeps
+the original icon. The build-only follow-up caches this unsupported outcome for the exact
+source assets, templates and Xcode, so later runs can avoid the repeated failed work. An
+asset/template/tool change invalidates it and retries; successful output is also cached.

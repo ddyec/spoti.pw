@@ -33,6 +33,9 @@ if mode == 'restore':
         sys.exit(1)
     if hashes(cache) != json.loads((cache / 'checksums.json').read_text()):
         raise ValueError('Icon cache checksum mismatch')
+    if (cache / 'unavailable.txt').is_file():
+        print('Alternate icons unavailable for these exact assets/tools: ' + (cache / 'unavailable.txt').read_text())
+        sys.exit(3)
     subprocess.run(['xcrun', 'assetutil', '-Z', str(cache / 'Assets.car')], check=True, stdout=subprocess.DEVNULL)
     current = plistlib.loads(info.read_bytes())
     alternates = plistlib.loads((cache / 'alternates.plist').read_bytes())
@@ -42,6 +45,14 @@ if mode == 'restore':
     shutil.copyfile(cache / 'Assets.car', car)
     shutil.copytree(cache / 'SGAppIconPreviews', folder / 'SGAppIconPreviews', dirs_exist_ok=True)
     print('Reused alternate icons for the same source assets, artwork and Xcode')
+elif mode == 'unavailable':
+    # Remember a deterministic catalog-validation failure for this exact source/tool key.
+    # Do not repeatedly spend minutes compiling output that cannot be injected.
+    if cache.exists():
+        shutil.rmtree(cache)
+    cache.mkdir(parents=True)
+    (cache / 'unavailable.txt').write_text(sys.argv[4])
+    (cache / 'checksums.json').write_text(json.dumps(hashes(cache), sort_keys=True))
 elif mode == 'save':
     cache.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(car, cache / 'Assets.car')
