@@ -123,7 +123,7 @@ static void *watch(void *unused) {
                     samples = 0;
                     lastSample = 0;
                 }
-                if (samples < kMaxSamplesPerStall && stalled - lastSample >= kInterval) {
+                if (samples < (atomic_load(&sg_performance) ? 3 : kMaxSamplesPerStall) && stalled - lastSample >= kInterval) {
                     uintptr_t frames[kMaxFrames];
                     int count = walk(frames);
                     samples++;

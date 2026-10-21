@@ -166,6 +166,9 @@ static SGPerfSummary readSummary(NSDictionary *s) {
         self.context = context;
         self.windowCount = self.streak = 0;
         self.regressed = NO;
+        // The preceding CPU interval may straddle pause/loading/scenario changes.
+        // Begin comparison with the next complete interval in the new context.
+        return;
     }
     SGPerfPoint point = {(cpu - previousCPU) / elapsed * 100, vm.phys_footprint / 1048576.0, delay};
     NSUInteger slot = self.windowCount % 30;

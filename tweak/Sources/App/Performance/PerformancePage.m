@@ -40,6 +40,11 @@ UIViewController *SGPerformancePage(void) {
         SGNotedSection(@"Current one-minute window", @[
             SGStatRow(@"Status", ^NSString *{ return SGPerformanceSnapshot()[@"status"]; }),
             metric(@"Process CPU", @"cpu", @"% of one core"),
+            SGStatRow(@"Playback state", ^NSString *{
+                NSDictionary *state = SGPerformanceSnapshot()[@"latest"][@"playback"];
+                return ![state[@"known"] boolValue] ? @"Waiting for player" : [state[@"loading"] boolValue] ? @"Loading" :
+                    [state[@"paused"] boolValue] ? @"Paused" : [state[@"playing"] boolValue] ? @"Playing" : @"Idle";
+            }),
             metric(@"Memory footprint", @"memory", @"MiB"),
             metric(@"Main queue delay p95", @"p95", @"ms"),
             SGStatRow(@"Retained samples", ^NSString *{ return [SGPerformanceSnapshot()[@"retained"] stringValue]; }),
