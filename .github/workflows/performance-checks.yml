@@ -50,8 +50,28 @@ jobs:
         env:
           HARNESS_ARCH: x86_64
         run: sh harness/player/build.sh
+      - name: Record and check rapid lyric reversals
+        run: |
+          mkdir -p out/motion
+          DEVICE="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for group in d["devices"].values() for x in group if x["name"].startswith("iPhone")))')"
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl install "$DEVICE" harness/player/build/PlayerHarness.app
+          xcrun simctl io "$DEVICE" recordVideo --codec=h264 out/motion/lyrics-interruptions.mp4 > out/motion/recording.log 2>&1 &
+          RECORD_PID=$!
+          SIMCTL_CHILD_HARNESS_SCENARIO=lyrics-interruptions SIMCTL_CHILD_HARNESS_BACKGROUND=0 \
+            xcrun simctl launch --console "$DEVICE" com.vojta.playerharness > out/motion/player.log 2>&1 &
+          sleep 11
+          xcrun simctl io "$DEVICE" screenshot out/motion/lyrics-final.png
+          kill -INT "$RECORD_PID"
+          wait "$RECORD_PID"
+          xcrun simctl terminate "$DEVICE" com.vojta.playerharness
+          grep -F 'lyrics interruption checks: 4 of 4 right -- PASS' out/motion/player.log
       - uses: actions/upload-artifact@v5
+        if: always()
         with:
           name: performance-source-build
-          path: tweak/packages/*.deb
-          if-no-files-found: error
+          path: |
+            tweak/packages/*.deb
+            out/motion/
+          if-no-files-found: warn
