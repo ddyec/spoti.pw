@@ -70,16 +70,15 @@ Visual acceptance remains on the owner’s device; no simulator or recording is 
 ## Play/pause typography continuity
 
 The subsequent device check confirmed alignment but exposed clipping during artwork shrink
-and a delayed rewrap after the follower window. The preview now measures in the unscaled
-artwork coordinates with its stable per-song height budget. The same word/translation views,
-font and wrap inputs survive play/pause. A separate canvas follows the artwork presentation
-scale and position on every animation frame, including rapid reversals. The endpoint hook no
-longer rebuilds text. Normal playback keeps full-size typography; pausing smoothly scales the
-same paragraph with the artwork instead of swapping layouts.
+and a delayed rewrap after the follower window. The final design keeps a stable reading column
+measured for the smallest artwork state and the per-song height budget. The same word and
+translation views, glyph size and wrap inputs survive play/pause. Only the viewport position
+and surrounding whitespace follow the artwork presentation geometry on each animation frame,
+including rapid reversal. There is no text-scale animation, endpoint layout replacement or
+late font substitution. Leading/trailing text stays anchored to the corresponding artwork edge.
 
-Sentence changes still move upward on the child views. Their motion composes with the parent
-canvas scale, so one transform cannot overwrite the other. Very long groups retain their
-translation and the existing vertical scroll rather than silently dropping content. Real host
+Sentence changes retain their simultaneous upward movement. Very long groups keep their
+translation and the existing vertical scroll instead of silently dropping content. Real host
 resizing and source/translation changes still update the layout. Regression checks sweep
-shrink/grow reversals and concurrent sentence progress, verifying stable measurement, continuous
-scale and no horizontal truncation or intersecting groups. Visual acceptance remains on-device.
+shrink/grow reversals and verify invariant measurement, continuous positioning and absence of
+horizontal clipping for every anchor. Visual acceptance remains on the owner's device.

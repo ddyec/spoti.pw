@@ -49,21 +49,17 @@ static CGRect sgrPreviewViewport(CGRect gap, CGFloat textHeight) {
     return CGRectMake(gap.origin.x, gap.origin.y + (gap.size.height - height) / 2, gap.size.width, height);
 }
 
-// Measure once in full-size cover coordinates. The canvas, not the text layout, follows
-// the artwork's continuous presentation scale; no late wrap/font substitution is needed.
-static CGSize sgrPreviewTextSize(CGRect layoutCover, CGRect host, CGFloat preferredHeight) {
-    if (CGRectIsNull(layoutCover)) return CGSizeZero;
-    CGFloat side = MAX(24, CGRectGetMinX(layoutCover));
+// Measure a reading column that fits both playback states. Keep its glyph size and wraps
+// unchanged while only the viewport's position and surrounding whitespace follow the cover.
+static CGSize sgrPreviewTextSize(CGRect compactCover, CGRect host, CGFloat preferredHeight) {
+    if (CGRectIsNull(compactCover)) return CGSizeZero;
+    CGFloat side = MAX(24, CGRectGetMinX(compactCover));
     CGFloat width = floor(host.size.width - 2 * side);
     return width >= 100 ? CGSizeMake(width, preferredHeight) : CGSizeZero;
 }
 
-static CGFloat sgrPreviewTextScale(CGFloat viewportWidth, CGFloat layoutWidth) {
-    return layoutWidth > 0 ? MIN(1, MAX(0.01, viewportWidth / layoutWidth)) : 1;
-}
-
 // Karaoke line views anchor at their leading/trailing edge, not at (0.5, 0.5).
-// Align the stable text column to the corresponding edge of the canvas.
+// Align the narrower reading column to the corresponding edge of the moving viewport.
 static CGPoint sgrPreviewLinePosition(CGSize viewport, CGSize text, CGPoint anchor) {
     return CGPointMake(viewport.width * anchor.x,
         MAX(0, (viewport.height - text.height) / 2) + text.height * anchor.y);
@@ -91,8 +87,6 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
 @property (nonatomic, strong) NSTimer *timer;
 @property (nonatomic, strong) CADisplayLink *link;
 @property (nonatomic, strong) UIScrollView *scroll;
-@property (nonatomic, strong) UIView *canvas;
-@property (nonatomic) CGFloat canvasScale;
 @property (nonatomic, strong) UIView *lineView;
 @property (nonatomic, strong) UIView *retiring;
 @property (nonatomic, strong) SGKaraokeLine *line;
@@ -118,9 +112,6 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     _scroll.alwaysBounceVertical = NO;
     _scroll.clipsToBounds = YES;
     [self addSubview:_scroll];
-    _canvas = [[UIView alloc] initWithFrame:CGRectZero];
-    _canvasScale = 1;
-    [_scroll addSubview:_canvas];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(refresh) name:SGKaraokeLinesDidChangeNotification object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(refresh) name:SGLyricsTranslationUpdatedNotification object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(refresh) name:SGKaraokeNativeLyricsDidChangeNotification object:nil];
@@ -153,29 +144,18 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     CGRect cover = SGRPlayerCoverPresentationFrameIn(host);
     CGRect gap = CGRectIsNull(cover) ? CGRectNull : sgrPreviewFrame(cover, [host convertRect:info.bounds fromView:info], host.bounds);
     if (CGRectIsNull(gap)) { self.frame = CGRectZero; return; }
-    CGFloat scale = sgrPreviewTextScale(gap.size.width, self.measured.width);
     CGFloat height = MAX(self.lineView.bounds.size.height, self.retiring.bounds.size.height);
-    CGRect viewport = sgrPreviewViewport(gap, height * scale);
+    CGRect viewport = sgrPreviewViewport(gap, height);
     if (!CGRectEqualToRect(self.frame, viewport)) self.frame = viewport;
     if (!CGRectEqualToRect(self.scroll.frame, self.bounds)) self.scroll.frame = self.bounds;
-    CGSize layoutViewport = CGSizeMake(self.measured.width, self.bounds.size.height / scale);
-    CGFloat contentHeight = MAX(layoutViewport.height, height);
-    CGRect canvasBounds = CGRectMake(0, 0, self.measured.width, contentHeight);
-    CGPoint canvasCenter = CGPointMake(self.bounds.size.width / 2, contentHeight * scale / 2);
-    CGAffineTransform transform = CGAffineTransformMakeScale(scale, scale);
-    // Bounds/center remain well-defined under the scale, and roll transforms remain on
-    // the child views. One transform never overwrites the other's motion.
-    if (!CGRectEqualToRect(self.canvas.bounds, canvasBounds)) self.canvas.bounds = canvasBounds;
-    if (!CGPointEqualToPoint(self.canvas.center, canvasCenter)) self.canvas.center = canvasCenter;
-    if (!CGAffineTransformEqualToTransform(self.canvas.transform, transform)) self.canvas.transform = transform;
-    self.canvasScale = scale;
     for (NSUInteger i = 0; i < 2; i++) {
         UIView *text = i == 0 ? self.lineView : self.retiring;
         if (!text) continue;
-        CGPoint position = sgrPreviewLinePosition(layoutViewport, text.bounds.size, text.layer.anchorPoint);
+        // Position only; don't set frame under the sentence's active roll transform.
+        CGPoint position = sgrPreviewLinePosition(self.bounds.size, text.bounds.size, text.layer.anchorPoint);
         if (!CGPointEqualToPoint(text.layer.position, position)) text.layer.position = position;
     }
-    CGSize contentSize = CGSizeMake(self.bounds.size.width, contentHeight * scale);
+    CGSize contentSize = CGSizeMake(self.bounds.size.width, MAX(self.bounds.size.height, height));
     if (!CGSizeEqualToSize(self.scroll.contentSize, contentSize)) self.scroll.contentSize = contentSize;
 }
 - (void)updateLink {
@@ -235,7 +215,7 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     SGRPlayerSetPreviewLift(track, lift);
     cover = SGRPlayerCoverFrameIn(host);
     CGRect frame = CGRectIsNull(cover) ? CGRectNull : sgrPreviewFrame(cover, information, host.bounds);
-    CGSize textSize = sgrPreviewTextSize(SGRPlayerPreviewLayoutCoverFrameIn(host), host.bounds, needed);
+    CGSize textSize = sgrPreviewTextSize(SGRPlayerCompactCoverFrameIn(host), host.bounds, needed);
     BOOL visible = ready && !CGRectIsNull(frame) && textSize.width > 0;
     if (visible != self.showing) {
         self.showing = visible;
@@ -264,7 +244,7 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
         self.line = line; self.translation = line.translation; self.measured = textSize;
         self.lineView = SGRKaraokePreviewLine(line, textSize.width, textSize.height);
         self.lineView.frame = (CGRect){CGPointZero, self.lineView.bounds.size};
-        [self.canvas addSubview:self.lineView];
+        [self.scroll addSubview:self.lineView];
         self.scroll.contentOffset = CGPointZero;
         [self updateGeometry];
         if (rolls && outgoing) {
@@ -273,7 +253,7 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
             // room between them, with their entry/exit outside the clipped text band.
             self.retiring = outgoing;
             [self updateGeometry];
-            CGFloat travel = sgrPreviewRollDistance(self.bounds.size.height / self.canvasScale,
+            CGFloat travel = sgrPreviewRollDistance(self.bounds.size.height,
                 outgoing.bounds.size.height, incoming.bounds.size.height);
             incoming.transform = CGAffineTransformMakeTranslation(0, travel);
             __weak SGRPlayerPreview *weakSelf = self;
