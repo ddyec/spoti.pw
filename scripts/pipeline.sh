@@ -24,13 +24,14 @@ FLEX_DEB="$ROOT/vendor/com.hopeless.autoflex_0.0.1_iphoneos-arm.deb"
 BUNDLE_ID="${BUNDLE_ID:-}"
 mkdir -p "$ROOT/out"
 
-IN="" OUT="" WITH_FLEX=1 INSTALL=0 NAME="" ICON=""
+IN="" OUT="" WITH_FLEX=1 INSTALL=0 NAME="" ICON="" COMPANION_DIR=""
 while [ $# -gt 0 ]; do
   case "$1" in
     -o) OUT="$2"; shift 2 ;;
     --name) NAME="$2"; shift 2 ;;
     --icon) ICON="$2"; shift 2 ;;
     --no-flex) WITH_FLEX=0; shift ;;
+    --companion-dir) COMPANION_DIR="$2"; shift 2 ;;
     --install) INSTALL=1; shift ;;
     -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
     *) IN="$1"; shift ;;
@@ -90,6 +91,14 @@ TWEAK_DEB="$(ls -t "$ROOT"/tweak/packages/*.deb | head -1)"
 echo "    $TWEAK_DEB"
 
 FILES=("$TWEAK_DEB")
+if [ -n "$COMPANION_DIR" ]; then
+  EEVEE_DYLIB="$(find "$COMPANION_DIR" -name EeveeSpotify.dylib -type f | head -1)"
+  EEVEE_FRAMEWORK="$(find "$COMPANION_DIR" -name EeveeSwiftProtobuf.framework -type d | head -1)"
+  EEVEE_BUNDLE="$(find "$COMPANION_DIR" -name EeveeSpotify.bundle -type d | head -1)"
+  [ -n "$EEVEE_DYLIB" ] && [ -n "$EEVEE_FRAMEWORK" ] && [ -n "$EEVEE_BUNDLE" ] \
+    || { echo "companion dylib, protobuf framework or resource bundle missing" >&2; exit 1; }
+  FILES+=("$EEVEE_DYLIB" "$EEVEE_FRAMEWORK" "$EEVEE_BUNDLE")
+fi
 [ "$WITH_FLEX" = 1 ] && FILES+=("$FLEX_DEB")
 
 # The Live Activity (Shared/LiveActivity) draws in a widget extension of its own.
@@ -145,6 +154,9 @@ if [ -n "${EXT_DIR:-}" ]; then
   "$ROOT/scripts/merge-appintents.py" "$OUT" "$APP_DIR" "$EXT_DIR/app/Metadata.appintents"
 fi
 
+if [ -n "$COMPANION_DIR" ]; then
+  python3 "$ROOT/scripts/finalize-companion.py" "$OUT"
+fi
 echo "==> done: $OUT"
 [ "$INSTALL" = 1 ] && exec "$ROOT/scripts/install.sh" "$OUT"
 exit 0

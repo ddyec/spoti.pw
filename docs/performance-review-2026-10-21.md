@@ -83,8 +83,10 @@ claimed without before/after measurements.
 - `scripts/check-layers.sh`: architecture boundaries.
 - The macOS workflow runs existing lyric regressions, compiles the full tweak
   using flags from the SHA-256 verified clean 9.1.78 IPA, and compiles the player
-  harness, runs its interruption scenario in the simulator and uploads a recording
-  and log. The downloaded IPA is not modified or redistributed.
+  harness. The user subsequently requested stopping simulator/recording work and
+  packaging the combined IPA for personal device acceptance. The source-only
+  recording workflow has been removed; `build-ipa.yml` now builds the pinned EV1
+  source together with this source into the supplied clean 9.1.78 package.
 - On iOS 26+ in Redesigned UI, inspect preview lines, full lyric open/close,
   rapid reversal, pause/resume, track changes and Reduced Motion. Check Native
   UI diagnostics separately. Record before/after runs in matching scenarios.

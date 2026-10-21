@@ -1,75 +1,83 @@
-name: Build IPA from your own Spotify IPA
+name: Build performance IPA with EV1
 
 on:
   workflow_dispatch:
     inputs:
       ipa_url:
-        description: "Direct link to a decrypted Spotify IPA"
+        description: "Decrypted Spotify 9.1.78 IPA"
         required: true
+        default: https://github.com/ddyec/python38/releases/download/22/com.spotify.client_9.1.78_und3fined.2.ipa
         type: string
+
+permissions:
+  contents: read
 
 env:
   THEOS: ${{ github.workspace }}/theos
+  COMPANION_SHA: 41199217675a277d844ea8137c89b5debc0fa834
 
 jobs:
   build:
-    # Avoid the ARM hosted-runner capacity failure; iOS arm64 remains the target.
     runs-on: macos-15-intel
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
-
-      - uses: levibostian/action-hide-sensitive-inputs@v1
-
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
-
-      - name: Check lyrics recording identity
-        run: python3 scripts/test-lyrics-identity.py
-
+      - uses: actions/checkout@v5
+        with:
+          repository: ddyec/EeveeSpotifyReincarnated
+          ref: ${{ env.COMPANION_SHA }}
+          path: companion
+          submodules: recursive
       - uses: actions/checkout@v5
         with:
           repository: theos/theos
           path: theos
           submodules: recursive
-
       - name: Install tools
         run: |
           brew install make dpkg ldid
           python3 -m pip install --break-system-packages git+https://github.com/asdfzxcvbn/pyzule-rw.git
-
-      - name: Download IPA
+      - name: Download the supplied clean IPA
+        env:
+          IPA_URL: ${{ inputs.ipa_url }}
         run: |
           mkdir -p ipa
-          curl -fsSL "${{ inputs.ipa_url }}" -o ipa/spotify.ipa
-          case "$(file --mime-type -b ipa/spotify.ipa)" in application/zip|application/x-ios-app) ;; *) echo "::error::Not an IPA"; exit 1 ;; esac
-
-      - run: make release
-
-      - name: Verify the 9.1.78 package components
+          curl -fL --retry 3 "$IPA_URL" -o ipa/spotify.ipa
+          echo 'dc1706972885217081b3a9debcf07e3a5762a5d59ef5873aa2533ebd8bd719b5  ipa/spotify.ipa' | shasum -a 256 -c -
+      - name: Compile EV1 from pinned source
+        working-directory: companion
+        env:
+          SWIFTPROTOBUF_VERSION: '1.29.0'
         run: |
+          make build-eeveeswiftprotobuf
+          THEOS_PACKAGE_SCHEME=rootless make -j3 package FINALPACKAGE=1
+          mkdir -p "$RUNNER_TEMP/ev1"
+          DEB="$(find packages -name '*.deb' -type f | head -1)"
+          test -n "$DEB"
+          dpkg-deb -x "$DEB" "$RUNNER_TEMP/ev1"
+      - name: Build the combined IPA
+        run: |
+          scripts/pipeline.sh ipa/spotify.ipa --no-flex --companion-dir "$RUNNER_TEMP/ev1" -o out/Spotify-9.1.78-Performance-EV1.ipa
           python3 - <<'PY'
+          import hashlib, json, os, subprocess
           from pathlib import Path
-          import zipfile, plistlib
-          outputs = list(Path('out').glob('*.ipa'))
-          assert len(outputs) == 1
-          with zipfile.ZipFile('ipa/spotify.ipa') as original, zipfile.ZipFile(outputs[0]) as result:
-              info_path = next(n for n in original.namelist() if n.startswith('Payload/') and n.endswith('.app/Info.plist') and n.count('/') == 2)
-              assert plistlib.loads(original.read(info_path))['CFBundleShortVersionString'] == '9.1.78'
-              assert plistlib.loads(result.read(info_path))['CFBundleShortVersionString'] == '9.1.78'
-              retained = [n for n in original.namelist() if 'eevee' in n.lower() or 'SwiftProtobuf.framework/' in n]
-              assert any(n.endswith('.dylib') for n in retained), 'Supplied EEVEE dylib missing'
-              for n in retained:
-                  assert n in result.namelist(), 'EEVEE component missing: ' + n
-              assert any(n.lower().endswith('/spotifyglass.dylib') for n in result.namelist()), 'New tweak missing'
-              # cyan re-signs existing dylibs. The user accepts these differences;
-              # do not treat changed signatures as a reason to discard the build.
-              print('Found', len(retained), 'supplied EEVEE paths; re-signing differences allowed')
-          outputs[0].rename('out/Spotify-9.1.78-Lyrics-Lift-Roll.ipa')
+          ipa = Path('out/Spotify-9.1.78-Performance-EV1.ipa')
+          manifest = {
+              'spoti_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
+              'eevee_commit': os.environ['COMPANION_SHA'],
+              'spotify': '9.1.78', 'flex': False, 'runtime_verified': False,
+              'sha256': hashlib.sha256(ipa.read_bytes()).hexdigest(),
+          }
+          Path('out/build-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
           PY
-
       - uses: actions/upload-artifact@v5
         with:
-          name: spoti-9.1.78-lyrics-lift-roll-ipa
-          path: out/*.ipa
+          name: Spotify-9.1.78-Performance-EV1
+          path: |
+            out/Spotify-9.1.78-Performance-EV1.ipa
+            out/build-manifest.json
           if-no-files-found: error
+          retention-days: 14

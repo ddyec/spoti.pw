@@ -683,6 +683,12 @@ static NSUInteger sg_costLogs;
 }
 
 - (void)updatePace {
+    // Process power/thermal notifications may arrive off-main; UIKit and layer state stay on main.
+    if (!NSThread.isMainThread) {
+        __weak SGRWarpView *weakSelf = self;
+        dispatch_async(dispatch_get_main_queue(), ^{ [weakSelf updatePace]; });
+        return;
+    }
     UIApplicationState state = UIApplication.sharedApplication.applicationState;
     SGRWarpPace pace = SGRWarpPaceMoving;
     if (!self.window || state == UIApplicationStateBackground) pace = SGRWarpPaceHidden;
