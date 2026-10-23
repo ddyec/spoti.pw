@@ -2,6 +2,7 @@
 #import "SGModPage.h"
 #import "SGPage.h"
 #import "SGPageStyle.h"
+#import "Core/SGLocalization.h"
 
 @implementation SGOrderItem
 @end
