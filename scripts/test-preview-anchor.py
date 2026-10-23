@@ -58,6 +58,12 @@ int main(void) {
     CGFloat lift = sgrPreviewNeededLift(cover,info,host,area,88,YES);
     assert(lift == 44);
     CGFloat anchor = CGRectGetMidY(cover) - lift;
+    CGFloat centered = sgrPreviewCenteredY(info,host,area);
+    assert(centered == 343 && centered > anchor);
+    assert(sgrPreviewKeepRecentText(NO,YES,0.5));
+    assert(!sgrPreviewKeepRecentText(NO,YES,1.0));
+    assert(!sgrPreviewKeepRecentText(NO,NO,0.1));
+    assert(sgrPreviewKeepRecentText(YES,NO,10));
     // A native response can arrive before or after any number of layout passes.
     // Test upward/downward parent moves, and both playing/paused cover scales.
     for (int pass=0; pass<500; pass++) {
@@ -100,7 +106,7 @@ int main(void) {
 # The preview must not request native availability just to decide its layout.
 assert 'SGLyricsSpotifyHas(' not in preview
 assert 'SGKaraokeProbeNativeLyrics(' not in preview
-assert 'SGRPlayerSetPreviewAnchor(host, track, self.anchorY)' in preview
+assert 'SGRPlayerSetPreviewAnchor(host, track, self.reserved ? self.anchorY : self.centeredY)' in preview
 assert 'transform.ty = sgrPreviewAnchorOffset(tilt.bounds, target.y)' in artwork
 with tempfile.TemporaryDirectory(prefix='preview-anchor-') as directory:
     source = Path(directory) / 'preview.c'

@@ -43,10 +43,19 @@ static CGFloat sgrPreviewNeededLift(CGRect cover, CGRect info, CGRect host, CGRe
     return MIN(limit, ceil(MAX(0, neededHeight - gap)));
 }
 
-// Once timed lyrics have been seen, a transient cache miss or an instrumental gap
-// does not give layout ownership back to Spotify. Track/setting changes reset it.
+// Retain the lyric position briefly across loading gaps; sustained silence centres the cover.
 static BOOL sgrPreviewReservesSpace(BOOL enabled, BOOL timed, BOOL sameTrack, BOOL reserved) {
     return enabled && (timed || (sameTrack && reserved));
+}
+
+static BOOL sgrPreviewKeepRecentText(BOOL content, BOOL reserved, CGFloat missingFor) {
+    return content || (reserved && missingFor >= 0 && missingFor < 1.0);
+}
+
+static CGFloat sgrPreviewCenteredY(CGRect info, CGRect host, CGRect area) {
+    CGFloat top = MAX(CGRectGetMinY(host) + 8, CGRectGetMinY(area) + 8);
+    CGFloat bottom = MIN(CGRectGetMinY(info) - 8, CGRectGetMaxY(area) - 8);
+    return (top + MAX(top, bottom)) / 2;
 }
 
 static BOOL sgrPreviewAnchorNeedsUpdate(BOOL anchored, CGRect previousInfo, CGRect info) {
@@ -112,6 +121,8 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
 @property (nonatomic) CGRect layoutHostBounds;
 @property (nonatomic) CGRect layoutInformation;
 @property (nonatomic) CGFloat anchorY;
+@property (nonatomic) CGFloat centeredY;
+@property (nonatomic) CFTimeInterval lastContentAt;
 @property (nonatomic) CFTimeInterval artworkUntil;
 @property (nonatomic) NSUInteger transitionID;
 - (void)refresh;
@@ -210,20 +221,25 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     SGRPlayerLyricsChanged();
     NSString *track = SGKaraokePlayingTrack();
     BOOL sameLayoutTrack = [self.layoutTrack isEqualToString:track];
-    self.reserved = sgrPreviewReservesSpace(SGEnabled(SGRKeyPlayerLyricsPreview), timed,
-        sameLayoutTrack, self.reserved);
     if (!sameLayoutTrack || !CGRectEqualToRect(self.layoutHostBounds, host.bounds)) self.anchored = NO;
+    if (!sameLayoutTrack) { self.reserved = NO; self.lastContentAt = 0; }
     self.layoutTrack = track;
     self.layoutHostBounds = host.bounds;
-    if (!self.reserved) self.anchored = NO;
     NSInteger ms = SGKaraokePositionMs();
     NSArray<SGKaraokeLine *> *lines = SGKaraokeLinesForTrack(track);
     NSInteger index = timed && ms >= 0 ? SGKaraokeLeadLine(lines, ms) : -1;
     SGKaraokeLine *line = index >= 0 ? lines[index] : nil;
+    BOOL content = timed && line && ms >= line.start && ms <= SGKaraokeSungEnd(line) + 4000 &&
+        [SGKaraokeLineText(line) stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].length > 0;
+    CFTimeInterval now = CACurrentMediaTime();
+    if (content) self.lastContentAt = now;
+    BOOL keepText = sgrPreviewKeepRecentText(content, self.reserved, now - self.lastContentAt);
+    self.reserved = sgrPreviewReservesSpace(SGEnabled(SGRKeyPlayerLyricsPreview), keepText,
+        sameLayoutTrack, self.reserved && keepText);
     CGFloat clip = 0; SGRPlayerAnimatedShowing(&clip, NULL);
-    BOOL ownsArtwork = self.reserved && !SGRPlayerLyricsOpen() && !SGRPlayerIsTransitioning() &&
+    BOOL ownsArtwork = track.length && !SGRPlayerLyricsOpen() && !SGRPlayerIsTransitioning() &&
         clip < 0.01 && UIApplication.sharedApplication.applicationState == UIApplicationStateActive;
-    BOOL ready = timed && line && ms <= SGKaraokeSungEnd(line) + 4000 && ownsArtwork;
+    BOOL ready = SGEnabled(SGRKeyPlayerLyricsPreview) && content && ownsArtwork;
     CGRect information = sgrShowing(info, host) ? [host convertRect:info.bounds fromView:info] : CGRectZero;
     // Reserve translation space from the start, including when translation arrives late.
     CGFloat needed = 88;
@@ -233,12 +249,13 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
             if (sgrPreviewAnchorNeedsUpdate(self.anchored, self.layoutInformation, information)) {
                 CGFloat lift = sgrPreviewNeededLift(baseline, information, host.bounds, area, needed, YES);
                 self.anchorY = CGRectGetMidY(baseline) - lift;
+                self.centeredY = sgrPreviewCenteredY(information, host.bounds, area);
                 self.layoutInformation = information;
                 self.anchored = YES;
                 SGLyricsLog(@"preview anchor track=%@ centerY=%.1f needed=%.0f nativeCover=%@ info=%@",
                     track, self.anchorY, needed, NSStringFromCGRect(baseline), NSStringFromCGRect(information));
             }
-            SGRPlayerSetPreviewAnchor(host, track, self.anchorY);
+            SGRPlayerSetPreviewAnchor(host, track, self.reserved ? self.anchorY : self.centeredY);
         }
     } else if (!ownsArtwork) SGRPlayerSetPreviewAnchor(nil, nil, 0);
     CGRect cover = SGRPlayerCoverFrameIn(host);
