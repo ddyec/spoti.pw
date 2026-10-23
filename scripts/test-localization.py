@@ -31,9 +31,9 @@ int main(void) {
             assert([SGTextForLanguage(raw, @"zh") isEqualToString:raw]);
         }
         NSString *format = SGTextForLanguage(@"Downloading %lld %% · %lld of %@", @"zh");
-        assert([[NSString stringWithFormat:format, 50ll, 235ll, @"470 MB"] isEqualToString:@"正在下载 50 % · 235 / 470 MB"]);
+        assert(([[NSString stringWithFormat:format, 50ll, 235ll, @"470 MB"] isEqualToString:@"正在下载 50 % · 235 / 470 MB"]));
         format = SGTextForLanguage(@"Spotify %@ isn't supported", @"zh");
-        assert([[NSString stringWithFormat:format, @"9.1.90"] isEqualToString:@"不支持 Spotify 9.1.90"]);
+        assert(([[NSString stringWithFormat:format, @"9.1.90"] isEqualToString:@"不支持 Spotify 9.1.90"]));
         puts("PASS: Chinese locale selection, English fallback, raw identifiers and formatted UI text");
     }
 }
