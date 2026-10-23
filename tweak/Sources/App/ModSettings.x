@@ -115,7 +115,7 @@ static UIViewController *modSettingsPage(void) {
     if (!(self = [super initWithFrame:frame])) return nil;
     _icon = SGSymbolView(@"slider.horizontal.3", 20, UIImageSymbolWeightRegular, 24);
     _title = [UILabel new];
-    _title.text = @"Mod Settings";
+    _title.text = SGText(@"Mod Settings");
     _title.textColor = UIColor.whiteColor;
     _chevron = SGSymbolView(@"chevron.right", 11, UIImageSymbolWeightSemibold, 12);
     for (UIView *v in @[_icon, _title, _chevron]) [self addSubview:v];

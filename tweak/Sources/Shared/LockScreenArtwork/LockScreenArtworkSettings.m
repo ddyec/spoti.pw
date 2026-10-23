@@ -7,10 +7,10 @@
 #import "LockScreenArtwork.h"
 
 static void sayWhatIsMissing(void) {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Animated lock screen"
-        message:[NSString stringWithFormat:@"Animated artwork is the lock screen's own, and iOS takes one only from 26 on. This phone runs iOS %@, where the cover stays still.", UIDevice.currentDevice.systemVersion]
+    UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:@"Animated lock screen"
+        message:[NSString stringWithFormat:SGText(@"Animated artwork is the lock screen's own, and iOS takes one only from 26 on. This phone runs iOS %@, where the cover stays still."), UIDevice.currentDevice.systemVersion]
         preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[SGSettingsAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
     [SGTopController() presentViewController:alert animated:YES completion:nil];
 }
 

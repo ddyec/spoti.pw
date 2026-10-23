@@ -13,32 +13,32 @@
 
 // The model's size as the footer and the prompts say it, to the nearest ten megabytes.
 static NSString *aboutSize(void) {
-    return [NSString stringWithFormat:@"about %lld MB", ((SGSingModelSize() >> 20) + 5) / 10 * 10];
+    return [NSString stringWithFormat:SGText(@"about %lld MB"), ((SGSingModelSize() >> 20) + 5) / 10 * 10];
 }
 
 static NSString *footer(void) {
-    return [NSString stringWithFormat:@"Sing turns the vocals of the song playing down to sing over, from the microphone in its lyrics. "
+    return [NSString stringWithFormat:SGText(@"Sing turns the vocals of the song playing down to sing over, from the microphone in its lyrics. "
             "It works on iOS 27 only. Its voice model, %@, is downloaded once and runs only on this iPhone. "
-            "The switch and the download apply straight away.", aboutSize()];
+            "The switch and the download apply straight away."), aboutSize()];
 }
 
 static void tell(NSString *title, NSString *message) {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[SGSettingsAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
     [SGTopController() presentViewController:alert animated:YES completion:nil];
 }
 
 static NSString *modelStatus(void) {
     int64_t received = SGSingModelReceived(), size = SGSingModelSize();
     switch (SGSingModelCurrentState()) {
-        case SGSingModelInstalled: return [@"Downloaded · " stringByAppendingString:SGSingModelBytesText(size)];
+        case SGSingModelInstalled: return [SGText(@"Downloaded · ") stringByAppendingString:SGSingModelBytesText(size)];
         case SGSingModelChecking: return @"Checking…";
         case SGSingModelDownloading:
-            return [NSString stringWithFormat:@"Downloading %lld %% · %lld of %@", received * 100 / size,
+            return [NSString stringWithFormat:SGText(@"Downloading %lld %% · %lld of %@"), received * 100 / size,
                     (received + (1ll << 19)) >> 20, SGSingModelBytesText(size)];
         case SGSingModelMissing:
             if (SGSingModelFailure()) return @"Download failed";
-            if (received > 0) return [NSString stringWithFormat:@"Paused · %lld of %@", (received + (1ll << 19)) >> 20, SGSingModelBytesText(size)];
+            if (received > 0) return [NSString stringWithFormat:SGText(@"Paused · %lld of %@"), (received + (1ll << 19)) >> 20, SGSingModelBytesText(size)];
             return @"Not downloaded";
     }
     return nil;
@@ -49,13 +49,13 @@ static void explainModel(void) {
     NSString *failure = SGSingModelFailure();
     switch (SGSingModelCurrentState()) {
         case SGSingModelInstalled:
-            tell(@"Voice model", [NSString stringWithFormat:@"It takes %@ on this iPhone. Remove it to free the space; Sing is unavailable without it.",
+            tell(@"Voice model", [NSString stringWithFormat:SGText(@"It takes %@ on this iPhone. Remove it to free the space; Sing is unavailable without it."),
                                   SGSingModelBytesText(SGSingModelSize())]);
             break;
         case SGSingModelMissing:
             tell(failure ? @"Download failed" : @"Voice model",
-                 failure ? [failure stringByAppendingString:@" Download goes on from where it stopped."]
-                         : [NSString stringWithFormat:@"Sing needs its voice model, %@, before its microphone shows in the lyrics.", aboutSize()]);
+                 failure ? [failure stringByAppendingString:SGText(@" Download goes on from where it stopped.")]
+                         : [NSString stringWithFormat:SGText(@"Sing needs its voice model, %@, before its microphone shows in the lyrics."), aboutSize()]);
             break;
         default:
             tell(@"Voice model", @"The download goes on while Spotify is in the background. Sing's microphone shows in the lyrics once it is in.");
@@ -70,11 +70,11 @@ static void startDownload(void) {
         if (network == SGSingModelOffline) {
             tell(@"No internet connection", @"Connect to Wi-Fi to download Sing's voice model.");
         } else if (network == SGSingModelMetered) {
-            UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Download over cellular?"
-                message:[NSString stringWithFormat:@"This iPhone isn't on Wi-Fi, and Sing's voice model is %@.", aboutSize()]
+            UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:@"Download over cellular?"
+                message:[NSString stringWithFormat:SGText(@"This iPhone isn't on Wi-Fi, and Sing's voice model is %@."), aboutSize()]
                 preferredStyle:UIAlertControllerStyleAlert];
-            [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
-            [alert addAction:[UIAlertAction actionWithTitle:@"Download" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+            [alert addAction:[SGSettingsAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+            [alert addAction:[SGSettingsAction actionWithTitle:@"Download" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
                 SGSingModelDownload(YES);
             }]];
             [SGTopController() presentViewController:alert animated:YES completion:nil];
@@ -86,13 +86,13 @@ static void startDownload(void) {
 
 static void confirmRemove(void) {
     BOOL installed = SGSingModelCurrentState() == SGSingModelInstalled;
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Remove the voice model?"
-        message:installed ? [NSString stringWithFormat:@"Sing is unavailable until it is downloaded again (%@).", aboutSize()]
-                          : [NSString stringWithFormat:@"The %@ downloaded so far are deleted, and the next download starts over.",
+    UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:@"Remove the voice model?"
+        message:installed ? [NSString stringWithFormat:SGText(@"Sing is unavailable until it is downloaded again (%@)."), aboutSize()]
+                          : [NSString stringWithFormat:SGText(@"The %@ downloaded so far are deleted, and the next download starts over."),
                              SGSingModelBytesText(SGSingModelReceived())]
         preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Remove" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
+    [alert addAction:[SGSettingsAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[SGSettingsAction actionWithTitle:@"Remove" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
         SGSingModelRemove();
     }]];
     [SGTopController() presentViewController:alert animated:YES completion:nil];
@@ -101,8 +101,8 @@ static void confirmRemove(void) {
 // Below iOS 27 the switch is a row saying what is missing.
 static SGModRow *unavailableRow(void) {
     return SGStatActionRow(@"Sing", nil, ^NSString *{ return @"Needs iOS 27"; }, ^{
-        tell(@"Sing", [NSString stringWithFormat:@"Sing separates a song's vocals on this iPhone with a voice model that needs iOS 27. "
-                       "This iPhone runs iOS %@.", UIDevice.currentDevice.systemVersion]);
+        tell(@"Sing", [NSString stringWithFormat:SGText(@"Sing separates a song's vocals on this iPhone with a voice model that needs iOS 27. "
+                       "This iPhone runs iOS %@."), UIDevice.currentDevice.systemVersion]);
     });
 }
 

@@ -58,22 +58,22 @@ static void showFix(void) {
     UIViewController *top = SGTopController();
     if (!appID || !top) return;
     NSString *message = [NSString stringWithFormat:
-        @"Sign Spotify again with the bundle id set to\n\n%@\n\n"
+        SGText(@"Sign Spotify again with the bundle id set to\n\n%@\n\n"
         @"In Feather that is the Identifier field; leave PPQ protection off, it appends a random "
         @"string and breaks this again.\n\n"
         @"Why: this build is installed as %@ but signed under the App ID %@. iOS opens the now "
         @"playing card by the App ID, so it asks for an app that is not there. Nothing else in the "
-        @"mod is affected.", appID, bundleID, appID];
-    UIAlertController *sheet = [UIAlertController alertControllerWithTitle:@"The lock screen cannot open Spotify"
+        @"mod is affected."), appID, bundleID, appID];
+    UIAlertController *sheet = [SGSettingsAlert alertControllerWithTitle:@"The lock screen cannot open Spotify"
                                                                   message:message
                                                            preferredStyle:UIAlertControllerStyleAlert];
-    [sheet addAction:[UIAlertAction actionWithTitle:@"Copy the bundle id" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+    [sheet addAction:[SGSettingsAction actionWithTitle:@"Copy the bundle id" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
         UIPasteboard.generalPasteboard.string = appID;
     }]];
-    [sheet addAction:[UIAlertAction actionWithTitle:@"Read more" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+    [sheet addAction:[SGSettingsAction actionWithTitle:@"Read more" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
         SGOpenURL(SGSigningHelpURL);
     }]];
-    [sheet addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    [sheet addAction:[SGSettingsAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
     [top presentViewController:sheet animated:YES completion:nil];
 }
 

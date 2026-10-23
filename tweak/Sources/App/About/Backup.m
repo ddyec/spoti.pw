@@ -20,9 +20,9 @@ static NSDictionary *storedDefaults(void) {
 }
 
 static void showAlert(NSString *title, NSString *message, UIAlertAction *confirm) {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
     if (confirm) [alert addAction:confirm];
-    [alert addAction:[UIAlertAction actionWithTitle:confirm ? @"Cancel" : @"OK" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[SGSettingsAction actionWithTitle:confirm ? @"Cancel" : @"OK" style:UIAlertActionStyleCancel handler:nil]];
     [SGTopController() presentViewController:alert animated:YES completion:nil];
 }
 
@@ -89,8 +89,8 @@ static void importSettings(NSDictionary *settings) {
         return;
     }
     NSString *mod = [file[@"mod"] isKindOfClass:NSString.class] ? file[@"mod"] : @"unknown";
-    NSString *message = [NSString stringWithFormat:@"Your settings are replaced by the file's, exported from version %@. Anything it does not have goes back to its default, and Spotify restarts.", mod];
-    showAlert(@"Import settings?", message, [UIAlertAction actionWithTitle:@"Import and restart" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
+    NSString *message = [NSString stringWithFormat:SGText(@"Your settings are replaced by the file's, exported from version %@. Anything it does not have goes back to its default, and Spotify restarts."), mod];
+    showAlert(@"Import settings?", message, [SGSettingsAction actionWithTitle:@"Import and restart" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
         importSettings(settings);
     }]);
 }

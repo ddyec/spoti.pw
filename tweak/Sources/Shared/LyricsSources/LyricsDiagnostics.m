@@ -118,10 +118,10 @@ UIViewController *SGLyricsDiagnosticsPage(void) {
         SGLyricsDiagnosticsExport(^(NSURL *file) {
             UIViewController *top = SGTopController();
             if (!file) {
-                UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"No lyrics debug logs"
+                UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:@"No lyrics debug logs"
                     message:@"Enable collection, play a different song and then return to the problem song."
                     preferredStyle:UIAlertControllerStyleAlert];
-                [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+                [alert addAction:[SGSettingsAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
                 [top presentViewController:alert animated:YES completion:nil];
                 return;
             }

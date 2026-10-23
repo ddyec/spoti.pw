@@ -144,7 +144,7 @@ typedef NS_ENUM(NSInteger, SGOrderSection) {
     SGOrderItem *item = [self itemFor:[self keysIn:path.section][(NSUInteger)path.row]];
     BOOL on = path.section == SGOrderSectionOn;
     // The asked ones are numbered, so the order reads as an order rather than a list.
-    NSString *title = on ? [NSString stringWithFormat:@"%ld. %@", (long)path.row + 1, item.name] : item.name;
+    NSString *title = on ? [NSString stringWithFormat:@"%ld. %@", (long)path.row + 1, SGText(item.name)] : item.name;
     NSString *problem = item.problem ? item.problem() : nil;
     SGFillCell(cell, title, problem ?: item.detail, on ? nil : SGGrey(), on ? @"checkmark.circle.fill" : @"circle");
     if (problem && on) {

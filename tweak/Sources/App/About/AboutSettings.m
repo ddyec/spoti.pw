@@ -19,11 +19,11 @@ static void resetAll(void) {
 }
 
 static void confirmReset(void) {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Reset all settings?"
+    UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:@"Reset all settings?"
                                                                   message:@"Every switch goes off, flag overrides and the tab bar layout are cleared, and Spotify restarts as it came, with the mod doing nothing until asked. Spotify's own settings are untouched."
                                                            preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Reset and restart" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) { resetAll(); }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[SGSettingsAction actionWithTitle:@"Reset and restart" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) { resetAll(); }]];
+    [alert addAction:[SGSettingsAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
     [SGTopController() presentViewController:alert animated:YES completion:nil];
 }
 

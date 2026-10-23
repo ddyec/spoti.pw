@@ -101,7 +101,7 @@ static NSString *graphicEqSummary(void) {
         points++;
         flat &= parts[1].doubleValue == 0;
     }
-    return flat ? @"Flat" : [NSString stringWithFormat:@"%lu points", (unsigned long)points];
+    return flat ? @"Flat" : [NSString stringWithFormat:SGText(@"%lu points"), (unsigned long)points];
 }
 
 // The effects' cards. The engine runs them in an order of its own (SGDSPEngine.m).
@@ -163,7 +163,7 @@ NSString *SGDSPSummary(void) {
     NSUInteger on = 0;
     for (SGDSPEffect *e in effects()) on += e.key && SGDSPSwitch(e.key);
     if (!on) return @"On";
-    return on == 1 ? @"1 effect" : [NSString stringWithFormat:@"%lu effects", (unsigned long)on];
+    return on == 1 ? @"1 effect" : [NSString stringWithFormat:SGText(@"%lu effects"), (unsigned long)on];
 }
 
 #pragma mark - numbers
@@ -260,19 +260,19 @@ static UIFont *tabular(UIFont *font) {
     _detents = count > 0 && count <= 24;
     _title.font = SGTitleFont();
     _value.font = tabular(SGTitleFont());
-    _title.text = row.title;
+    _title.text = SGText(row.title);
     _slider.minimumTrackTintColor = SGGreen();
     _slider.minimumValue = (float)range.min;
     _slider.maximumValue = (float)range.max;
     _slider.spokenStep = (float)(count > 0 && count <= 40 ? range.step : snapped(row.key, range.min + (range.max - range.min) / 20) - range.min);
     _shown = SGDSPNumber(row.key);
     _slider.value = (float)_shown;
-    _slider.accessibilityLabel = row.title;
+    _slider.accessibilityLabel = SGText(row.title);
     [self showValue];
 }
 
 - (void)showValue {
-    _value.text = numberText(_row, _shown);
+    _value.text = SGText(numberText(_row, _shown));
     _slider.accessibilityValue = _value.text;
     [self setNeedsLayout];
 }
@@ -388,7 +388,7 @@ static UIView *valueAndChevron(NSString *text) {
     UILabel *label = [UILabel new];
     label.font = SGTitleFont();
     label.textColor = SGGrey();
-    label.text = text;
+    label.text = SGText(text);
     [label sizeToFit];
     UIImageView *chevron = SGSymbolView(@"chevron.right", 13, UIImageSymbolWeightSemibold, 16);
     CGFloat height = MAX(label.bounds.size.height, chevron.bounds.size.height);
@@ -739,17 +739,17 @@ static UIView *valueAndChevron(NSString *text) {
 }
 
 - (void)confirmReset {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Reset all effects?"
+    UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:@"Reset all effects?"
         message:@"Every effect goes off, and every value, curve and file choice back to its default. The Effects switch and your imported files stay."
         preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Reset" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
+    [alert addAction:[SGSettingsAction actionWithTitle:@"Reset" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
         SGDSPResetAll();
         [self readState];
         [UIView transitionWithView:self.tableView duration:0.25 options:UIViewAnimationOptionTransitionCrossDissolve animations:^{
             [self.tableView reloadData];
         } completion:nil];
     }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[SGSettingsAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
 }
 

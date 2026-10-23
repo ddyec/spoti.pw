@@ -101,7 +101,7 @@ BOOL SGCertificateOfferShown(void) {
 SGModRow *SGCertificateRow(void) {
     if (!signedFree()) return nil;
     NSDate *expires = SGCertificateExpiry();
-    NSString *title = expires ? [NSString stringWithFormat:@"Signed until %@", dayOf(expires)] : @"Signed with a free Apple ID";
+    NSString *title = expires ? [NSString stringWithFormat:SGText(@"Signed until %@"), dayOf(expires)] : @"Signed with a free Apple ID";
     return SGWithSymbol(SGLinkRow(title, @"A free Apple ID signs for 7 days, a certificate for a year", kCertificateURL), @"signature");
 }
 

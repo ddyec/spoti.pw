@@ -123,10 +123,10 @@ static UIImage *preview(NSString *file) {
             SGLog(@"app icon: %@ -> %@", file, error ?: @"set");
             [weakTable reloadData];
             if (!error) return;
-            UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"The icon did not change"
+            UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:@"The icon did not change"
                                                                           message:error.localizedDescription
                                                                    preferredStyle:UIAlertControllerStyleAlert];
-            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+            [alert addAction:[SGSettingsAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
             [SGTopController() presentViewController:alert animated:YES completion:nil];
         });
     }];

@@ -31,12 +31,12 @@ static NSString *extensionList(SGDSPFileKind kind) {
     if (dotted.count < 2) return dotted.firstObject ?: @"";
     NSString *last = dotted.lastObject;
     [dotted removeLastObject];
-    return [NSString stringWithFormat:@"%@ or %@", [dotted componentsJoinedByString:@", "], last];
+    return [NSString stringWithFormat:SGText(@"%@ or %@"), [dotted componentsJoinedByString:@", "], last];
 }
 
 static void showAlert(UIViewController *owner, NSString *title, NSString *message) {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[SGSettingsAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
     [owner presentViewController:alert animated:YES completion:nil];
 }
 
@@ -183,7 +183,7 @@ static UITableViewCell *tiledCell(UITableView *table, NSString *title, NSString 
 - (UITableViewCell *)tableView:(UITableView *)table cellForRowAtIndexPath:(NSIndexPath *)path {
     if (path.section == 0) return [self errorCellIn:table];
     if (path.section == 2) {
-        NSString *subtitle = [NSString stringWithFormat:@"A %@ file from Files", extensionList(_kind)];
+        NSString *subtitle = [NSString stringWithFormat:SGText(@"A %@ file from Files"), extensionList(_kind)];
         return tiledCell(table, @"Import file…", subtitle, @"square.and.arrow.down", nil);
     }
     UITableViewCell *cell = SGDequeueCell(table, @"file");
@@ -194,7 +194,7 @@ static UITableViewCell *tiledCell(UITableView *table, NSString *title, NSString 
     }
     NSString *name = _files[(NSUInteger)path.row];
     BOOL chosen = [name isEqualToString:SGDSPString(fileKeyOf(_kind))];
-    SGFillCell(cell, name, nil, nil, nil);
+    SGFillRawCell(cell, name, nil, nil, nil);
     cell.selectionStyle = UITableViewCellSelectionStyleDefault;
     if (chosen) {
         UIImageView *tick = SGSymbolView(@"checkmark", 13, UIImageSymbolWeightSemibold, 16);
@@ -256,7 +256,7 @@ static UITableViewCell *tiledCell(UITableView *table, NSString *title, NSString 
     NSURL *url = urls.firstObject;
     if (!url) return;
     if (![SGDSPFileExtensions(_kind) containsObject:url.pathExtension.lowercaseString]) {
-        showAlert(self, @"Not a file this effect takes", [NSString stringWithFormat:@"Pick a %@ file.", extensionList(_kind)]);
+        showAlert(self, @"Not a file this effect takes", [NSString stringWithFormat:SGText(@"Pick a %@ file."), extensionList(_kind)]);
         return;
     }
     NSError *error = nil;

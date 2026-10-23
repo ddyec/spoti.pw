@@ -14,6 +14,8 @@ static BOOL sg_pagesConform;
 
 @implementation SGPage
 
+- (void)setTitle:(NSString *)title { [super setTitle:SGText(title)]; }
+
 // Inset grouped cards on Spotify's dark grey, a hairline between the rows of a card.
 - (void)viewDidLoad {
     [super viewDidLoad];

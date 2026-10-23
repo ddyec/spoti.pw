@@ -5,8 +5,8 @@
 #import "Diagnostics/SGPerformance.h"
 
 static void message(NSString *title, NSString *text) {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:text preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:title message:text preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[SGSettingsAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
     [SGTopController() presentViewController:alert animated:YES completion:nil];
 }
 static SGModRow *metric(NSString *title, NSString *key, NSString *unit) {

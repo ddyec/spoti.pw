@@ -66,7 +66,7 @@ static NSString *cellLabel(SGGestureAction action) {
     [zones enumerateObjectsUsingBlock:^(NSNumber *action, NSUInteger index, BOOL *stop) {
         UILabel *label = self->_labels[index];
         SGGestureAction value = (SGGestureAction)action.integerValue;
-        label.text = cellLabel(value);
+        label.text = SGText(cellLabel(value));
         label.textColor = value == SGGestureNothing ? SGGrey() : UIColor.whiteColor;
     }];
     [self setNeedsLayout];
@@ -144,16 +144,16 @@ static NSString *cellLabel(SGGestureAction action) {
 
 - (void)pickActionFor:(NSInteger)cell {
     NSArray<NSString *> *names = SGGestureActionNames();
-    UIAlertController *sheet = [UIAlertController alertControllerWithTitle:@"Double tap here"
+    UIAlertController *sheet = [SGSettingsAlert alertControllerWithTitle:@"Double tap here"
                                                                   message:nil
                                                            preferredStyle:UIAlertControllerStyleActionSheet];
     [names enumerateObjectsUsingBlock:^(NSString *name, NSUInteger index, BOOL *stop) {
-        [sheet addAction:[UIAlertAction actionWithTitle:name style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [sheet addAction:[SGSettingsAction actionWithTitle:name style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
             SGSetGestureZone(cell, (SGGestureAction)index);
             [self refresh];
         }]];
     }];
-    [sheet addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [sheet addAction:[SGSettingsAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
     sheet.popoverPresentationController.sourceView = _grid;
     sheet.popoverPresentationController.sourceRect = _grid.bounds;
     [self presentViewController:sheet animated:YES completion:nil];
@@ -201,7 +201,7 @@ static NSString *cellLabel(SGGestureAction action) {
         case 2: {
             BOOL split = path.section == 1;
             NSString *title = split ? SGGestureSplitNames()[(NSUInteger)path.row]
-                                    : [NSString stringWithFormat:@"%@ seconds", SGGestureStepChoices()[(NSUInteger)path.row]];
+                                    : [NSString stringWithFormat:SGText(@"%@ seconds"), SGGestureStepChoices()[(NSUInteger)path.row]];
             SGFillCell(cell, title, nil, nil, nil);
             cell.selectionStyle = UITableViewCellSelectionStyleDefault;
             if (path.row == (split ? SGGestureSplit() : SGGestureStepChoice())) {
