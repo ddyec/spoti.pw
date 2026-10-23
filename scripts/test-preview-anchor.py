@@ -60,10 +60,19 @@ int main(void) {
     CGFloat anchor = CGRectGetMidY(cover) - lift;
     CGFloat centered = sgrPreviewCenteredY(info,host,area);
     assert(centered == 343 && centered > anchor);
-    assert(sgrPreviewKeepRecentText(NO,YES,0.5));
-    assert(!sgrPreviewKeepRecentText(NO,YES,1.0));
-    assert(!sgrPreviewKeepRecentText(NO,NO,0.1));
-    assert(sgrPreviewKeepRecentText(YES,NO,10));
+    // Known LRC gaps, intro/outro and seeking are driven only by song time.
+    assert(!sgrPreviewInTimelineBreak(9999,10000,30000));
+    assert(sgrPreviewInTimelineBreak(10000,10000,30000));
+    assert(sgrPreviewInTimelineBreak(29249,10000,30000));
+    assert(!sgrPreviewInTimelineBreak(29250,10000,30000));
+    assert(!sgrPreviewInTimelineBreak(12000,10000,16000));
+    assert(sgrPreviewInTimelineBreak(0,0,30000));
+    assert(!sgrPreviewInTimelineBreak(3999,0,-1));
+    assert(sgrPreviewInTimelineBreak(4000,0,-1));
+    assert(!sgrPreviewInTimelineBreak(-1,0,30000));
+    // A cache miss preserves either state, including an already-centred break.
+    assert(sgrPreviewReservesSpace(YES,NO,YES,YES));
+    assert(!sgrPreviewReservesSpace(YES,NO,YES,NO));
     // A native response can arrive before or after any number of layout passes.
     // Test upward/downward parent moves, and both playing/paused cover scales.
     for (int pass=0; pass<500; pass++) {

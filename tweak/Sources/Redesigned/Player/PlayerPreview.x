@@ -43,13 +43,17 @@ static CGFloat sgrPreviewNeededLift(CGRect cover, CGRect info, CGRect host, CGRe
     return MIN(limit, ceil(MAX(0, neededHeight - gap)));
 }
 
-// Retain the lyric position briefly across loading gaps; sustained silence centres the cover.
+// Unknown data retains the last position; only a known timeline gap centres artwork.
 static BOOL sgrPreviewReservesSpace(BOOL enabled, BOOL timed, BOOL sameTrack, BOOL reserved) {
     return enabled && (timed || (sameTrack && reserved));
 }
 
-static BOOL sgrPreviewKeepRecentText(BOOL content, BOOL reserved, CGFloat missingFor) {
-    return content || (reserved && missingFor >= 0 && missingFor < 1.0);
+static BOOL sgrPreviewInTimelineBreak(NSInteger ms, NSInteger sungTo, NSInteger nextStart) {
+    if (ms < 0) return NO;
+    if (nextStart < 0) return ms >= sungTo + 4000;
+    // Match the full lyric page's seven-second break threshold. Begin the return
+    // 750 ms early, allowing for the 250 ms clock and the artwork spring.
+    return nextStart - sungTo >= 7000 && ms >= sungTo && ms < nextStart - 750;
 }
 
 static CGFloat sgrPreviewCenteredY(CGRect info, CGRect host, CGRect area) {
@@ -122,7 +126,6 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
 @property (nonatomic) CGRect layoutInformation;
 @property (nonatomic) CGFloat anchorY;
 @property (nonatomic) CGFloat centeredY;
-@property (nonatomic) CFTimeInterval lastContentAt;
 @property (nonatomic) CFTimeInterval artworkUntil;
 @property (nonatomic) NSUInteger transitionID;
 - (void)refresh;
@@ -222,7 +225,7 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     NSString *track = SGKaraokePlayingTrack();
     BOOL sameLayoutTrack = [self.layoutTrack isEqualToString:track];
     if (!sameLayoutTrack || !CGRectEqualToRect(self.layoutHostBounds, host.bounds)) self.anchored = NO;
-    if (!sameLayoutTrack) { self.reserved = NO; self.lastContentAt = 0; }
+    if (!sameLayoutTrack) self.reserved = NO;
     self.layoutTrack = track;
     self.layoutHostBounds = host.bounds;
     NSInteger ms = SGKaraokePositionMs();
@@ -231,15 +234,20 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     SGKaraokeLine *line = index >= 0 ? lines[index] : nil;
     BOOL content = timed && line && ms >= line.start && ms <= SGKaraokeSungEnd(line) + 4000 &&
         [SGKaraokeLineText(line) stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].length > 0;
-    CFTimeInterval now = CACurrentMediaTime();
-    if (content) self.lastContentAt = now;
-    BOOL keepText = sgrPreviewKeepRecentText(content, self.reserved, now - self.lastContentAt);
-    self.reserved = sgrPreviewReservesSpace(SGEnabled(SGRKeyPlayerLyricsPreview), keepText,
-        sameLayoutTrack, self.reserved && keepText);
+    BOOL timelineKnown = timed && ms >= 0;
+    NSInteger sungTo = 0, nextStart = -1;
+    if (timelineKnown) for (SGKaraokeLine *candidate in lines) {
+        if (![SGKaraokeLineText(candidate) stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].length) continue;
+        if (candidate.start > ms) { nextStart = candidate.start; break; }
+        sungTo = MAX(sungTo, SGKaraokeSungEnd(candidate));
+    }
+    BOOL inBreak = timelineKnown && sgrPreviewInTimelineBreak(ms, sungTo, nextStart);
+    self.reserved = sgrPreviewReservesSpace(SGEnabled(SGRKeyPlayerLyricsPreview), timelineKnown && !inBreak,
+        sameLayoutTrack, self.reserved && !timelineKnown);
     CGFloat clip = 0; SGRPlayerAnimatedShowing(&clip, NULL);
     BOOL ownsArtwork = track.length && !SGRPlayerLyricsOpen() && !SGRPlayerIsTransitioning() &&
         clip < 0.01 && UIApplication.sharedApplication.applicationState == UIApplicationStateActive;
-    BOOL ready = SGEnabled(SGRKeyPlayerLyricsPreview) && content && ownsArtwork;
+    BOOL ready = SGEnabled(SGRKeyPlayerLyricsPreview) && content && !inBreak && ownsArtwork;
     CGRect information = sgrShowing(info, host) ? [host convertRect:info.bounds fromView:info] : CGRectZero;
     // Reserve translation space from the start, including when translation arrives late.
     CGFloat needed = 88;

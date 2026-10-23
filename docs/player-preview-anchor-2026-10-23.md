@@ -19,10 +19,12 @@ The existing cover layout hook and player layout hook enforce the anchor; no
 unverified Spotify selector or native availability network probe is added.
 
 The lyric target and the centred target are cached per track. When a current
-nonempty lyric line is visible, the artwork uses the lyric target. A one-second
-buffer covers temporary cache/clock gaps; sustained lyric-free playback uses the
-centre of the header-to-information artwork band. The next visible line restores
-the same saved lyric target. Translation arrival does not change its 88-point
+nonempty lyric line is visible, the artwork uses the lyric target. Known timeline gaps of at least seven seconds (matching the full lyric page)
+centre the artwork after the preceding sung line ends. The artwork starts returning
+750 ms before the next line, allowing for the 250 ms timer and the cover spring.
+Intro gaps use the first line's timestamp; the outro centres after the existing
+four-second lyric hold. Seeks use the new playback position directly. Temporary
+cache/clock gaps preserve the previous position rather than declaring a break. Translation arrival does not change its 88-point
 budget. Track changes and host resizing invalidate the targets. Disabling preview
 selects the centred target. Actual movement of the information row recalculates
 them; changing only that row's height does not. Full lyrics, player transitions,
@@ -35,7 +37,7 @@ Exceptionally tall lyric groups retain the existing scroll fallback.
 `python3 scripts/test-preview-anchor.py` compiles the actual production geometry
 and state predicates using CoreGraphics value-type shims. It simulates 500 late
 native parent-layout changes, signed compensation, playing/paused bounds,
-header-limited layouts, cache gaps, one-second hysteresis, centred geometry, setting changes and track reset. It passes on
+header-limited layouts, cache gaps, LRC break boundaries and advance return, centred geometry, setting changes and track reset. It passes on
 Linux. Layer checks, performance arithmetic regressions and diff checks pass.
 The existing Foundation identity/layout suite has been updated to remove the
 obsolete native-status gate assertions. The macOS IPA workflow runs both suites
