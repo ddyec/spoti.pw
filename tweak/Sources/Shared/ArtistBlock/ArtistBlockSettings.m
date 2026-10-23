@@ -142,7 +142,7 @@ typedef NS_ENUM(NSInteger, SGArtistSection) {
     [artists enumerateObjectsUsingBlock:^(NSDictionary *artist, NSUInteger index, BOOL *stop) {
         BOOL blocked = SGArtistBlocked(artist[SGArtistURI]);
         NSString *title = index == 0 ? artist[SGArtistName] : [NSString stringWithFormat:SGText(@"%@ (featured)"), artist[SGArtistName]];
-        UIAlertAction *action = [SGSettingsAction actionWithTitle:title style:UIAlertActionStyleDestructive handler:^(UIAlertAction *a) {
+        UIAlertAction *action = [UIAlertAction actionWithTitle:title style:UIAlertActionStyleDestructive handler:^(UIAlertAction *a) {
             SGBlockArtist(artist);
             [self reload];
         }];
