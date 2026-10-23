@@ -24,13 +24,9 @@ static NSHashTable<UIView *> *sg_tilts;
 // The cover of each tilt view once found. A frame Spotify sets on a scaled view becomes its scaled
 // size, leaving bounds that no longer match the tilt view's, so the cover is not looked for by size again.
 static NSMapTable<UIView *, UIView *> *sg_covers;
-static NSString *sg_previewLiftTrack;
-static CGFloat sg_previewLift;
-
-CGFloat SGRPlayerPreviewLift(void) {
-    if (SGRPlayerLyricsOpen() || SGRPlayerIsTransitioning()) return 0;
-    return [sg_previewLiftTrack isEqualToString:SGKaraokePlayingTrack()] ? sg_previewLift : 0;
-}
+static NSString *sg_previewAnchorTrack;
+static __weak UIView *sg_previewAnchorHost;
+static CGFloat sg_previewAnchorY;
 
 static CGFloat currentScale(void) {
     SPTPlayerState *state = SGPlayerState();
@@ -60,12 +56,25 @@ static BOOL inCoverCell(UIView *tilt) {
     return NO;
 }
 
+// Signed correction: native layout can move either above or below the anchor.
+static CGFloat sgrPreviewAnchorOffset(CGRect layout, CGFloat anchorY) {
+    return anchorY - CGRectGetMidY(layout);
+}
+
 static void scaleCover(UIView *tilt, CGFloat scale) {
     UIView *cover = coverIn(tilt);
     if (!cover) return;
     SGRShadowPlate *plate = SGRShadowPlateIn(tilt, &kPlateKey);
     CGAffineTransform transform = CGAffineTransformMakeScale(scale, scale);
-    transform.ty = -SGRPlayerPreviewLift();
+    UIView *host = sg_previewAnchorHost;
+    if (host && [tilt isDescendantOfView:host] &&
+        [sg_previewAnchorTrack isEqualToString:SGKaraokePlayingTrack()] &&
+        !SGRPlayerLyricsOpen() && !SGRPlayerIsTransitioning()) {
+        // An absolute centre in player coordinates cancels late native layout changes.
+        // Work in tilt coordinates so parent offsets/scales are not added twice.
+        CGPoint target = [tilt convertPoint:CGPointMake(CGRectGetMidX(host.bounds), sg_previewAnchorY) fromView:host];
+        transform.ty = sgrPreviewAnchorOffset(tilt.bounds, target.y);
+    }
     if (!CGAffineTransformEqualToTransform(cover.transform, transform)) cover.transform = transform;
     if (!CGAffineTransformEqualToTransform(plate.transform, transform)) plate.transform = transform;
 }
@@ -213,11 +222,21 @@ static void scaleEveryCover(BOOL animated) {
     else apply();
 }
 
-void SGRPlayerSetPreviewLift(NSString *trackID, CGFloat lift) {
-    lift = MAX(0, lift);
-    if ((sg_previewLiftTrack == trackID || [sg_previewLiftTrack isEqualToString:trackID]) && fabs(sg_previewLift - lift) < 0.5) return;
-    sg_previewLiftTrack = [trackID copy]; sg_previewLift = lift;
-    scaleEveryCover(YES);
+void SGRPlayerSetPreviewAnchor(UIView *host, NSString *trackID, CGFloat centerY) {
+    BOOL changed = host != sg_previewAnchorHost ||
+        !((!trackID && !sg_previewAnchorTrack) || [sg_previewAnchorTrack isEqualToString:trackID]) ||
+        fabs(centerY - sg_previewAnchorY) > 0.5;
+    sg_previewAnchorHost = host;
+    sg_previewAnchorTrack = [trackID copy];
+    sg_previewAnchorY = centerY;
+    // Reapply even an unchanged anchor: Spotify may have moved the tilt's ancestors.
+    // That correction must occur in the same layout pass, without another spring.
+    scaleEveryCover(changed);
+}
+
+CGRect SGRPlayerCoverLayoutFrameIn(UIView *host) {
+    UIView *tilt = showingTilt();
+    return tilt && host ? [host convertRect:tilt.bounds fromView:tilt] : CGRectNull;
 }
 
 %hook _TtC35CreativeWorkCommons_CoverArtTiltKit16CoverArtTiltView

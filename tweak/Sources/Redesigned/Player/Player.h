@@ -97,12 +97,13 @@ UIView *SGRPlayerCoverList(void);
 CGRect SGRPlayerCoverFrameIn(UIView *host);
 // Smallest artwork layout, for a reading column stable through pause/resume.
 CGRect SGRPlayerCompactCoverFrameIn(UIView *host);
-// A preview-only vertical compensation; the upstream paused scale is unchanged.
-CGFloat SGRPlayerPreviewLift(void);
+// Full-size native layout, excluding our anchor and the paused child scale.
+CGRect SGRPlayerCoverLayoutFrameIn(UIView *host);
 // A bounded presentation-layer follower for artwork springs, including pause/resume reversal.
 void SGRPlayerPreviewArtworkWillAnimate(void);
 CGRect SGRPlayerCoverPresentationFrameIn(UIView *host);
-void SGRPlayerSetPreviewLift(NSString *trackID, CGFloat lift);
+// Pin the cover centre in player coordinates; nil releases preview ownership.
+void SGRPlayerSetPreviewAnchor(UIView *host, NSString *trackID, CGFloat centerY);
 // The band that cover sits in -- the room the player gives its artwork, between the header row and the
 // title -- in `host`'s coordinates; CGRectNull when no cover has laid out.
 CGRect SGRPlayerArtworkAreaIn(UIView *host);

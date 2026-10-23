@@ -32,15 +32,38 @@ static CGRect sgrPreviewFrame(CGRect cover, CGRect info, CGRect host) {
                       host.size.width - side * 2, height);
 }
 
-// Input is the unshifted cover. Recompute an absolute lift, never accumulate it.
+// Compute the initial target from geometry, independent of native lyric availability.
 static CGFloat sgrPreviewNeededLift(CGRect cover, CGRect info, CGRect host, CGRect area,
-                                    CGFloat neededHeight, NSInteger nativeStatus, BOOL ready) {
-    if (!ready || nativeStatus != 0 || CGRectIsNull(cover) || CGRectIsNull(area) ||
+                                    CGFloat neededHeight, BOOL ready) {
+    if (!ready || CGRectIsNull(cover) || CGRectIsNull(area) ||
         info.size.height <= 0 || cover.size.width < 200) return 0;
     CGFloat gap = CGRectGetMinY(info) - CGRectGetMaxY(cover) - 16;
     CGFloat firstSafeTop = MAX(CGRectGetMinY(host) + 8, CGRectGetMinY(area) + 8);
     CGFloat limit = MAX(0, CGRectGetMinY(cover) - firstSafeTop);
     return MIN(limit, ceil(MAX(0, neededHeight - gap)));
+}
+
+// Unknown data retains the last position; only a known timeline gap centres artwork.
+static BOOL sgrPreviewReservesSpace(BOOL enabled, BOOL timed, BOOL sameTrack, BOOL reserved) {
+    return enabled && (timed || (sameTrack && reserved));
+}
+
+static BOOL sgrPreviewInTimelineBreak(NSInteger ms, NSInteger sungTo, NSInteger nextStart) {
+    if (ms < 0) return NO;
+    if (nextStart < 0) return ms >= sungTo + 4000;
+    // Match the full lyric page's seven-second break threshold. Begin the return
+    // 750 ms early, allowing for the 250 ms clock and the artwork spring.
+    return nextStart - sungTo >= 7000 && ms >= sungTo && ms < nextStart - 750;
+}
+
+static CGFloat sgrPreviewCenteredY(CGRect info, CGRect host, CGRect area) {
+    CGFloat top = MAX(CGRectGetMinY(host) + 8, CGRectGetMinY(area) + 8);
+    CGFloat bottom = MIN(CGRectGetMinY(info) - 8, CGRectGetMaxY(area) - 8);
+    return (top + MAX(top, bottom)) / 2;
+}
+
+static BOOL sgrPreviewAnchorNeedsUpdate(BOOL anchored, CGRect previousInfo, CGRect info) {
+    return !anchored || fabs(CGRectGetMinY(previousInfo) - CGRectGetMinY(info)) > 0.5;
 }
 
 // Clip the transition to the text band, rather than exposing both lines in the entire gap.
@@ -96,6 +119,13 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
 @property (nonatomic) NSInteger position;
 @property (nonatomic) CGSize measured;
 @property (nonatomic) BOOL showing;
+@property (nonatomic, copy) NSString *layoutTrack;
+@property (nonatomic) BOOL reserved;
+@property (nonatomic) BOOL anchored;
+@property (nonatomic) CGRect layoutHostBounds;
+@property (nonatomic) CGRect layoutInformation;
+@property (nonatomic) CGFloat anchorY;
+@property (nonatomic) CGFloat centeredY;
 @property (nonatomic) CFTimeInterval artworkUntil;
 @property (nonatomic) NSUInteger transitionID;
 - (void)refresh;
@@ -130,7 +160,7 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     if (!self.window || UIApplication.sharedApplication.applicationState != UIApplicationStateActive) {
         self.showing = NO;
         self.alpha = 0;
-        SGRPlayerSetPreviewLift(nil, 0);
+        SGRPlayerSetPreviewAnchor(nil, nil, 0);
         return;
     }
     __weak SGRPlayerPreview *weakSelf = self;
@@ -191,29 +221,52 @@ static BOOL sgrShowing(UIView *view, UIView *host) {
     UIView *host = self.superview, *info = sgr_previewInfo;
     if (!host) return;
     BOOL timed = SGRPlayerPreviewAvailable();
-    // Keep Spotify's artwork scale. Only supplement its absent native lyrics layout.
     SGRPlayerLyricsChanged();
     NSString *track = SGKaraokePlayingTrack();
+    BOOL sameLayoutTrack = [self.layoutTrack isEqualToString:track];
+    if (!sameLayoutTrack || !CGRectEqualToRect(self.layoutHostBounds, host.bounds)) self.anchored = NO;
+    if (!sameLayoutTrack) self.reserved = NO;
+    self.layoutTrack = track;
+    self.layoutHostBounds = host.bounds;
     NSInteger ms = SGKaraokePositionMs();
     NSArray<SGKaraokeLine *> *lines = SGKaraokeLinesForTrack(track);
     NSInteger index = timed && ms >= 0 ? SGKaraokeLeadLine(lines, ms) : -1;
     SGKaraokeLine *line = index >= 0 ? lines[index] : nil;
+    BOOL content = timed && line && ms >= line.start && ms <= SGKaraokeSungEnd(line) + 4000 &&
+        [SGKaraokeLineText(line) stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].length > 0;
+    BOOL timelineKnown = timed && ms >= 0;
+    NSInteger sungTo = 0, nextStart = -1;
+    if (timelineKnown) for (SGKaraokeLine *candidate in lines) {
+        if (![SGKaraokeLineText(candidate) stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].length) continue;
+        if (candidate.start > ms) { nextStart = candidate.start; break; }
+        sungTo = MAX(sungTo, SGKaraokeSungEnd(candidate));
+    }
+    BOOL inBreak = timelineKnown && sgrPreviewInTimelineBreak(ms, sungTo, nextStart);
+    self.reserved = sgrPreviewReservesSpace(SGEnabled(SGRKeyPlayerLyricsPreview), timelineKnown && !inBreak,
+        sameLayoutTrack, self.reserved && !timelineKnown);
     CGFloat clip = 0; SGRPlayerAnimatedShowing(&clip, NULL);
-    BOOL ready = timed && line && ms <= SGKaraokeSungEnd(line) + 4000 &&
-        !SGRPlayerLyricsOpen() && !SGRPlayerIsTransitioning() && clip < 0.01 &&
-        UIApplication.sharedApplication.applicationState == UIApplicationStateActive;
-    if (ready) SGKaraokeProbeNativeLyrics(track);
-    CGRect cover = SGRPlayerCoverFrameIn(host);
+    BOOL ownsArtwork = track.length && !SGRPlayerLyricsOpen() && !SGRPlayerIsTransitioning() &&
+        clip < 0.01 && UIApplication.sharedApplication.applicationState == UIApplicationStateActive;
+    BOOL ready = SGEnabled(SGRKeyPlayerLyricsPreview) && content && !inBreak && ownsArtwork;
     CGRect information = sgrShowing(info, host) ? [host convertRect:info.bounds fromView:info] : CGRectZero;
-    CGRect baseline = cover;
-    if (!CGRectIsNull(baseline)) baseline.origin.y += SGRPlayerPreviewLift();
-    // Reserve a stable per-song budget, not a different cover position on each line.
-    CGFloat needed = 64;
-    for (SGKaraokeLine *candidate in lines) if (candidate.translation.length) { needed = 88; break; }
-    CGFloat lift = sgrPreviewNeededLift(baseline, information, host.bounds, SGRPlayerArtworkAreaIn(host),
-        needed, SGLyricsSpotifyHas(track), ready);
-    SGRPlayerSetPreviewLift(track, lift);
-    cover = SGRPlayerCoverFrameIn(host);
+    // Reserve translation space from the start, including when translation arrives late.
+    CGFloat needed = 88;
+    if (ownsArtwork && information.size.height > 0) {
+        CGRect baseline = SGRPlayerCoverLayoutFrameIn(host), area = SGRPlayerArtworkAreaIn(host);
+        if (!CGRectIsNull(baseline) && !CGRectIsNull(area) && baseline.size.width >= 200) {
+            if (sgrPreviewAnchorNeedsUpdate(self.anchored, self.layoutInformation, information)) {
+                CGFloat lift = sgrPreviewNeededLift(baseline, information, host.bounds, area, needed, YES);
+                self.anchorY = CGRectGetMidY(baseline) - lift;
+                self.centeredY = sgrPreviewCenteredY(information, host.bounds, area);
+                self.layoutInformation = information;
+                self.anchored = YES;
+                SGLyricsLog(@"preview anchor track=%@ centerY=%.1f needed=%.0f nativeCover=%@ info=%@",
+                    track, self.anchorY, needed, NSStringFromCGRect(baseline), NSStringFromCGRect(information));
+            }
+            SGRPlayerSetPreviewAnchor(host, track, self.reserved ? self.anchorY : self.centeredY);
+        }
+    } else if (!ownsArtwork) SGRPlayerSetPreviewAnchor(nil, nil, 0);
+    CGRect cover = SGRPlayerCoverFrameIn(host);
     CGRect frame = CGRectIsNull(cover) ? CGRectNull : sgrPreviewFrame(cover, information, host.bounds);
     CGSize textSize = sgrPreviewTextSize(SGRPlayerCompactCoverFrameIn(host), host.bounds, needed);
     BOOL visible = ready && !CGRectIsNull(frame) && textSize.width > 0;
