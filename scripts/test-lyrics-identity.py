@@ -9,6 +9,7 @@ import json
 import sys
 
 root = Path(__file__).resolve().parents[1]
+subprocess.run([sys.executable, str(root / 'scripts/test-preview-anchor.py')], check=True)
 audit = json.loads((root / 'docs/lyrics-live-audit-round2-2026-10-18.json').read_text(encoding='utf-8'))
 assert audit['all_passed'] and audit['reused_results'] == 0, 'Fresh multilingual audit did not pass'
 qq_audit = json.loads((root / 'docs/lyrics-qq-retry-2026-10-18.json').read_text(encoding='utf-8'))
@@ -60,14 +61,15 @@ int main(void) {
             CGRectGetMaxY(bilingualRect) < CGRectGetMinY(info), @"bilingual preview uses available gap without moving artwork or overlapping title");
         check(CGRectIsNull(sgrPreviewFrame(cover, CGRectMake(0, 490, 402, 64), player)), @"redesigned preview cannot overlap controls");
         CGRect lowCover = CGRectMake(24, 162, 354, 354), area = CGRectMake(0, 110, 402, 466);
-        CGFloat lift = sgrPreviewNeededLift(lowCover, info, player, area, 88, 0, YES);
-        check(lift == 44, @"native missing + bilingual preview reserves only bounded header-safe space");
-        check(sgrPreviewNeededLift(lowCover, info, player, area, 88, 1, YES) == 0, @"native present never gets a second lift");
-        check(sgrPreviewNeededLift(lowCover, info, player, area, 88, -1, YES) == 0, @"unknown or failed probe never shifts artwork");
-        check(sgrPreviewNeededLift(lowCover, info, player, area, 88, 0, NO) == 0, @"no custom preview/full lyrics/transition restores artwork");
-        check(sgrPreviewNeededLift(cover, info, player, area, 88, 0, YES) == 0, @"existing native spacing is not pushed twice");
-        for (int i = 0; i < 50; i++) check(sgrPreviewNeededLift(lowCover, info, player, area, 88, 0, YES) == lift,
+        CGFloat lift = sgrPreviewNeededLift(lowCover, info, player, area, 88, YES);
+        check(lift == 44, @"bilingual preview reserves bounded header-safe space regardless of native status");
+        check(sgrPreviewNeededLift(lowCover, info, player, area, 88, NO) == 0, @"disabled preview restores artwork");
+        check(sgrPreviewNeededLift(cover, info, player, area, 88, YES) == 0, @"existing spacing is not pushed twice");
+        for (int i = 0; i < 50; i++) check(sgrPreviewNeededLift(lowCover, info, player, area, 88, YES) == lift,
             @"layout refresh computes an absolute offset, not cumulative movement");
+        check(sgrPreviewReservesSpace(YES, NO, YES, YES), @"same-track cache miss retains space");
+        check(!sgrPreviewReservesSpace(YES, NO, NO, YES), @"new track without lyrics releases space");
+        check(!sgrPreviewReservesSpace(NO, YES, YES, YES), @"disabling preview releases space");
         check(SGNativeLyricsVerdict(404, NO, NO, NO) == 0, @"native 404 is absent");
         check(SGNativeLyricsVerdict(200, NO, YES, YES) == 1, @"valid native lyrics are present");
         check(SGNativeLyricsVerdict(200, NO, YES, NO) == 0, @"valid empty native lyrics are absent");
