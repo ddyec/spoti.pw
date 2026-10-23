@@ -62,11 +62,11 @@ static UIButton *glassButton(NSString *title) {
     icon.layer.cornerCurve = kCACornerCurveContinuous;
 
     UILabel *name = [UILabel new];
-    name.text = title;
+    name.text = SGText(title);
     name.font = [UIFont systemFontOfSize:17 weight:UIFontWeightSemibold];
     name.textColor = UIColor.whiteColor;
     UILabel *line = [UILabel new];
-    line.text = subtitle;
+    line.text = SGText(subtitle);
     line.font = [UIFont systemFontOfSize:13];
     line.textColor = SGGrey();
     line.numberOfLines = 0;
@@ -150,7 +150,7 @@ static UIButton *glassButton(NSString *title) {
     UIImageView *icon = SGSymbolView(@"exclamationmark.triangle.fill", 15, UIImageSymbolWeightSemibold, 22);
     icon.tintColor = UIColor.systemYellowColor;
     UILabel *text = [UILabel new];
-    text.text = SGRedesignTested() ? @"The redesign is a beta. Expect lags, freezes and bugs, and if you find one, please report it." : SGRedesignUntestedWarning();
+    text.text = SGText(SGRedesignTested() ? @"The redesign is a beta. Expect lags, freezes and bugs, and if you find one, please report it." : SGRedesignUntestedWarning());
     text.font = [UIFont systemFontOfSize:13];
     text.textColor = SGGrey();
     text.numberOfLines = 0;
@@ -197,7 +197,7 @@ static UIButton *glassButton(NSString *title) {
     [strip addSubview:halo];
 
     UILabel *heading = [UILabel new];
-    heading.text = @"Pick your look.";
+    heading.text = SGText(@"Pick your look.");
     heading.font = [UIFont systemFontOfSize:30 weight:UIFontWeightBold];
     heading.textColor = UIColor.whiteColor;
     heading.numberOfLines = 0;
@@ -229,7 +229,7 @@ static UIButton *glassButton(NSString *title) {
     _primary = glassButton(@"Start listening");
     [_primary addTarget:self action:@selector(finish) forControlEvents:UIControlEventTouchUpInside];
     UILabel *footer = [UILabel new];
-    footer.text = @"Hold Home to open settings.";
+    footer.text = SGText(@"Hold Home to open settings.");
     footer.font = [UIFont systemFontOfSize:13];
     footer.textColor = SGGrey();
     footer.textAlignment = NSTextAlignmentCenter;

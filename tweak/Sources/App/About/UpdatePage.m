@@ -112,13 +112,13 @@ static NSArray<SGUpdateRelease *> *releasesToShow(void) {
 
 - (NSString *)introText {
     SGUpdateRelease *newest = SGUpdateNewestRelease();
-    if (!newest) return [NSString stringWithFormat:@"This build is %s. Nothing has been asked of GitHub yet.", SG_VERSION];
+    if (!newest) return [NSString stringWithFormat:SGText(@"This build is %s. Nothing has been asked of GitHub yet."), SG_VERSION];
     NSString *date = longDate(newest.date);
-    NSString *when = date.length ? [@" came out on " stringByAppendingString:date] : @" is out";
+    NSString *when = date.length ? [SGText(@" came out on ") stringByAppendingString:date] : SGText(@" is out");
     if (SGUpdateVersion())
-        return [NSString stringWithFormat:@"%@%@, and this build is %s. Everything in between is below.",
+        return [NSString stringWithFormat:SGText(@"%@%@, and this build is %s. Everything in between is below."),
                 newest.version, when, SG_VERSION];
-    return [NSString stringWithFormat:@"This build, %s, is GitHub's newest release; it%@. What went into it is below.",
+    return [NSString stringWithFormat:SGText(@"This build, %s, is GitHub's newest release; it%@. What went into it is below."),
             SG_VERSION, when];
 }
 
@@ -133,7 +133,7 @@ static NSArray<SGUpdateRelease *> *releasesToShow(void) {
     NSMutableArray<SGUpdateRow *> *top = [NSMutableArray arrayWithObject:check];
     SGUpdateRelease *newest = SGUpdateNewestRelease();
     if (SGUpdateVersion() && newest.url.length)
-        [top addObject:linkRow([@"Get " stringByAppendingString:newest.version],
+        [top addObject:linkRow([SGText(@"Get ") stringByAppendingString:newest.version],
                                @"The release on GitHub, where its .deb is", @"arrow.down.circle", newest.url)];
     [top addObject:linkRow(@"All releases", @"Every version, this one and the ones before it",
                            @"clock.arrow.circlepath", [SGRepoURL stringByAppendingString:@"/releases"])];

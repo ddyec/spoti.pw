@@ -8,3 +8,6 @@
 #import "SGBackdrop.h"
 #import "SGUIMode.h"
 #import "SGFlagForce.h"
+
+#import "SGLocalization.h"
+#import "SGLocalizationUI.h"

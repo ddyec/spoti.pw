@@ -152,7 +152,7 @@ static UIView *iconAccessory(NSString *name) {
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self action:@selector(cancel)];
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"Add" style:UIBarButtonItemStyleDone target:self action:@selector(add)];
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:SGText(@"Add") style:UIBarButtonItemStyleDone target:self action:@selector(add)];
 }
 
 // The link and icon pages write into the draft, so it is read again on the way back.
@@ -180,7 +180,7 @@ static UIView *iconAccessory(NSString *name) {
         field.translatesAutoresizingMaskIntoConstraints = NO;
         field.textColor = UIColor.whiteColor;
         field.tintColor = SGGreen();
-        field.placeholder = @"Name";
+        field.placeholder = SGText(@"Name");
         field.clearButtonMode = UITextFieldViewModeWhileEditing;
         field.autocorrectionType = UITextAutocorrectionTypeNo;
         field.returnKeyType = UIReturnKeyDone;
@@ -289,7 +289,7 @@ static UIView *iconAccessory(NSString *name) {
         [self.navigationController popViewControllerAnimated:YES];
         return;
     }
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Custom link" message:@"Paste a Spotify share link or enter a spotify: URI." preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:@"Custom link" message:@"Paste a Spotify share link or enter a spotify: URI." preferredStyle:UIAlertControllerStyleAlert];
     [alert addTextFieldWithConfigurationHandler:^(UITextField *field) {
         field.placeholder = @"spotify:playlist:… or open.spotify.com/…";
         field.text = self->_draft[SGNavbarURI];
@@ -297,8 +297,8 @@ static UIView *iconAccessory(NSString *name) {
         field.autocorrectionType = UITextAutocorrectionTypeNo;
         field.keyboardType = UIKeyboardTypeURL;
     }];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Use Link" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+    [alert addAction:[SGSettingsAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[SGSettingsAction actionWithTitle:@"Use Link" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
         NSURL *url = SGSpotifyURIFromText(alert.textFields.firstObject.text);
         if (!url) {
             [self showLinkError:@"Enter a Spotify share link or spotify: URI."];
@@ -310,7 +310,7 @@ static UIView *iconAccessory(NSString *name) {
               route == SGLinkRouteOpens ? via : route == SGLinkRouteNone ? @"no handler" : @"unknown");
         // Said here rather than by Spotify's alert on the bar later, every time the tab is tapped.
         if (route == SGLinkRouteNone) {
-            [self showLinkError:[NSString stringWithFormat:@"Spotify has nowhere to open %@.", url.absoluteString]];
+            [self showLinkError:[NSString stringWithFormat:SGText(@"Spotify has nowhere to open %@."), url.absoluteString]];
             return;
         }
         self->_draft[SGNavbarURI] = url.absoluteString;
@@ -321,8 +321,8 @@ static UIView *iconAccessory(NSString *name) {
 }
 
 - (void)showLinkError:(NSString *)message {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Can't use that link" message:message preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+    UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:@"Can't use that link" message:message preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[SGSettingsAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
 }
 
@@ -425,7 +425,7 @@ static NSArray<NSString *> *symbolNames(void) {
     self.tableView.tableHeaderView = header;
 
     _symbolHint = [UILabel new];
-    _symbolHint.text = @"Use search to find any SF Symbol";
+    _symbolHint.text = SGText(@"Use search to find any SF Symbol");
     _symbolHint.textColor = SGGrey();
     _symbolHint.font = [UIFont systemFontOfSize:13];
     _symbolHint.textAlignment = NSTextAlignmentCenter;
@@ -435,7 +435,7 @@ static NSArray<NSString *> *symbolNames(void) {
     _searchController.searchResultsUpdater = self;
     _searchController.obscuresBackgroundDuringPresentation = NO;
     _searchController.hidesNavigationBarDuringPresentation = NO;
-    _searchController.searchBar.placeholder = @"Search all icons";
+    _searchController.searchBar.placeholder = SGText(@"Search all icons");
     _searchController.searchBar.tintColor = UIColor.whiteColor;
     _searchController.searchBar.delegate = self;
     self.navigationItem.searchController = _searchController;
@@ -675,7 +675,7 @@ typedef NS_ENUM(NSInteger, SGNavbarSection) {
             NSDictionary *entry = _entries[(NSUInteger)path.row];
             BOOL hidden = [entry[SGNavbarHidden] boolValue];
             NSString *uri = entry[SGNavbarURI];
-            SGFillCell(cell, entry[SGNavbarTitle], hidden ? @"Hidden" : (uri ?: @"Spotify's own tab"),
+            SGFillRawCell(cell, uri ? entry[SGNavbarTitle] : SGText(entry[SGNavbarTitle]), SGText(hidden ? @"Hidden" : (uri ?: @"Spotify's own tab")),
                      hidden ? SGGrey() : nil, hidden ? @"eye.slash" : @"eye");
             break;
         }
@@ -744,11 +744,11 @@ typedef NS_ENUM(NSInteger, SGNavbarSection) {
 }
 
 - (void)reset {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Use Spotify's order"
+    UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:@"Use Spotify's order"
                                                                   message:@"Every tab of Spotify's comes back where Spotify put it, and the tabs you added go."
                                                            preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Reset" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
+    [alert addAction:[SGSettingsAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[SGSettingsAction actionWithTitle:@"Reset" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
         SGSetNavbarLayout(@[]);
         SGRefreshTabBar();
         [self reload];

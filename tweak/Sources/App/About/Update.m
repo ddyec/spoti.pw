@@ -158,7 +158,7 @@ NSString *SGUpdateStatus(void) {
     if (sg_running) return @"checking…";
     if (sg_failure) return sg_failure;
     NSString *latest = SGUpdateVersion();
-    if (latest) return [latest stringByAppendingString:@" is out"];
+    if (latest) return [latest stringByAppendingString:SGText(@" is out")];
     if ([NSUserDefaults.standardUserDefaults doubleForKey:kChecked] > 0) return @"up to date";
     return @"not checked";
 }

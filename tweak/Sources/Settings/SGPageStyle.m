@@ -19,7 +19,7 @@ UIImageView *SGSymbolView(NSString *name, CGFloat size, UIImageSymbolWeight weig
 // A grey note in a wrapper view, for the table header and footer.
 UIView *SGNote(NSString *text) {
     UILabel *label = [UILabel new];
-    label.text = text;
+    label.text = SGText(text);
     label.font = SGSubtitleFont();
     label.textColor = SGGrey();
     label.numberOfLines = 0;
@@ -110,6 +110,11 @@ const CGFloat SGSectionGap = 20;
 // Every page below draws Spotify's own list row: a 13pt white title over an 11pt grey subtitle,
 // with an optional symbol in the leading slot.
 void SGFillCell(UITableViewCell *cell, NSString *title, NSString *subtitle, UIColor *color, NSString *symbolName) {
+    SGFillRawCell(cell, SGText(title), SGText(subtitle), color, symbolName);
+}
+
+// User-authored names, file names and artist names are never catalogue lookups.
+void SGFillRawCell(UITableViewCell *cell, NSString *title, NSString *subtitle, UIColor *color, NSString *symbolName) {
     UIListContentConfiguration *content = [UIListContentConfiguration subtitleCellConfiguration];
     content.text = title;
     content.secondaryText = subtitle;
@@ -132,7 +137,7 @@ void SGFillCell(UITableViewCell *cell, NSString *title, NSString *subtitle, UICo
 
 UIView *SGSectionHeader(UITableView *table, NSString *title) {
     UILabel *label = [UILabel new];
-    label.text = title.uppercaseString;
+    label.text = SGText(title).uppercaseString;
     label.font = SGSubtitleFont();
     label.textColor = SGGrey();
     label.frame = CGRectMake(16, 20, table.bounds.size.width - 32, 14);
@@ -148,7 +153,7 @@ static CGFloat footerTextHeight(UITableView *table, NSString *text) {
     // An inset grouped table narrows its footers by its side margins, and the label wraps at that width.
     CGFloat inset = table.style == UITableViewStyleInsetGrouped ? table.layoutMargins.left + table.layoutMargins.right : 0;
     CGFloat width = MAX(table.bounds.size.width - inset - 32, 100);
-    return ceil([text boundingRectWithSize:CGSizeMake(width, CGFLOAT_MAX)
+    return ceil([SGText(text) boundingRectWithSize:CGSizeMake(width, CGFLOAT_MAX)
                                    options:NSStringDrawingUsesLineFragmentOrigin
                                 attributes:@{NSFontAttributeName: SGSubtitleFont()}
                                    context:nil].size.height);
@@ -156,7 +161,7 @@ static CGFloat footerTextHeight(UITableView *table, NSString *text) {
 
 UIView *SGSectionFooter(UITableView *table, NSString *text) {
     UILabel *label = [UILabel new];
-    label.text = text;
+    label.text = SGText(text);
     label.font = SGSubtitleFont();
     label.textColor = SGGrey();
     label.numberOfLines = 0;
@@ -177,6 +182,7 @@ static NSString *linkShown(NSString *url) {
 }
 
 NSString *SGLinkedFooterText(NSString *text, NSString *url) {
+    text = SGText(text);
     return [NSString stringWithFormat:@"%@ %@", text, linkShown(url)];
 }
 

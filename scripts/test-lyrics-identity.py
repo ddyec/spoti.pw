@@ -10,6 +10,7 @@ import sys
 
 root = Path(__file__).resolve().parents[1]
 subprocess.run([sys.executable, str(root / 'scripts/test-preview-anchor.py')], check=True)
+subprocess.run([sys.executable, str(root / 'scripts/test-localization.py')], check=True)
 audit = json.loads((root / 'docs/lyrics-live-audit-round2-2026-10-18.json').read_text(encoding='utf-8'))
 assert audit['all_passed'] and audit['reused_results'] == 0, 'Fresh multilingual audit did not pass'
 qq_audit = json.loads((root / 'docs/lyrics-qq-retry-2026-10-18.json').read_text(encoding='utf-8'))

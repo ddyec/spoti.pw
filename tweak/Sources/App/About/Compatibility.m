@@ -34,11 +34,11 @@ static NSArray<SGIncompatibility *> *incompatibilities(void) {
         NSString *version = runningVersion();
         if (version && ![version isEqualToString:SGSupportedSpotifyVersion]) {
             SGIncompatibility *wrong = [SGIncompatibility new];
-            wrong.title = [NSString stringWithFormat:@"Spotify %@ isn't supported", version];
-            wrong.subtitle = [NSString stringWithFormat:@"The mod is made for %@ only", SGSupportedSpotifyVersion];
+            wrong.title = [NSString stringWithFormat:SGText(@"Spotify %@ isn't supported"), version];
+            wrong.subtitle = [NSString stringWithFormat:SGText(@"The mod is made for %@ only"), SGSupportedSpotifyVersion];
             wrong.message = [NSString stringWithFormat:
-                @"spoti.pw is made for Spotify %@ only. On any other version parts of it break or go missing, "
-                @"so it won't work the way you expect.\n\n%@ Use a %@ IPA instead.",
+                SGText(@"spoti.pw is made for Spotify %@ only. On any other version parts of it break or go missing, "
+                @"so it won't work the way you expect.\n\n%@ Use a %@ IPA instead."),
                 SGSupportedSpotifyVersion, kReportLine, SGSupportedSpotifyVersion];
             wrong.key = @"spotifyglass.spotifyversion.warned";
             wrong.stamp = version;
@@ -49,8 +49,8 @@ static NSArray<SGIncompatibility *> *incompatibilities(void) {
             eevee.title = @"EeveeSpotify isn't supported";
             eevee.subtitle = @"It is injected alongside spoti.pw";
             eevee.message = [NSString stringWithFormat:
-                @"spoti.pw isn't made to run alongside EeveeSpotify. Both change the same parts of Spotify, "
-                @"so things break or behave in ways you don't expect.\n\n%@ Use an IPA without EeveeSpotify instead.",
+                SGText(@"spoti.pw isn't made to run alongside EeveeSpotify. Both change the same parts of Spotify, "
+                @"so things break or behave in ways you don't expect.\n\n%@ Use an IPA without EeveeSpotify instead."),
                 kReportLine];
             eevee.key = @"spotifyglass.eevee.warned";
             eevee.stamp = @"eevee";
@@ -64,10 +64,10 @@ static NSArray<SGIncompatibility *> *incompatibilities(void) {
 static void showWarning(SGIncompatibility *problem, void (^done)(void)) {
     UIViewController *top = SGTopController();
     if (!top) return;
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:problem.title
+    UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:problem.title
                                                                    message:problem.message
                                                             preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) {
+    [alert addAction:[SGSettingsAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) {
         if (done) done();
     }]];
     [top presentViewController:alert animated:YES completion:nil];

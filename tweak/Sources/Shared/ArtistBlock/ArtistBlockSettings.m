@@ -96,7 +96,7 @@ typedef NS_ENUM(NSInteger, SGArtistSection) {
                 break;
             }
             NSDictionary *artist = _blocked[(NSUInteger)path.row];
-            SGFillCell(cell, artist[SGArtistName], artist[SGArtistURI], nil, nil);
+            SGFillRawCell(cell, artist[SGArtistName], artist[SGArtistURI], nil, nil);
             break;
     }
     return cell;
@@ -129,19 +129,19 @@ typedef NS_ENUM(NSInteger, SGArtistSection) {
 - (void)pickFromPlaying:(UIView *)source {
     NSArray<NSDictionary *> *artists = SGPlayingArtists();
     if (!artists.count) {
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Nothing playing"
+        UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:@"Nothing playing"
                                                                       message:@"Play a track by the artist first, then come back here."
                                                                preferredStyle:UIAlertControllerStyleAlert];
-        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+        [alert addAction:[SGSettingsAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
         [self presentViewController:alert animated:YES completion:nil];
         return;
     }
-    UIAlertController *sheet = [UIAlertController alertControllerWithTitle:@"Block"
+    UIAlertController *sheet = [SGSettingsAlert alertControllerWithTitle:@"Block"
                                                                   message:nil
                                                            preferredStyle:UIAlertControllerStyleActionSheet];
     [artists enumerateObjectsUsingBlock:^(NSDictionary *artist, NSUInteger index, BOOL *stop) {
         BOOL blocked = SGArtistBlocked(artist[SGArtistURI]);
-        NSString *title = index == 0 ? artist[SGArtistName] : [NSString stringWithFormat:@"%@ (featured)", artist[SGArtistName]];
+        NSString *title = index == 0 ? artist[SGArtistName] : [NSString stringWithFormat:SGText(@"%@ (featured)"), artist[SGArtistName]];
         UIAlertAction *action = [UIAlertAction actionWithTitle:title style:UIAlertActionStyleDestructive handler:^(UIAlertAction *a) {
             SGBlockArtist(artist);
             [self reload];
@@ -149,7 +149,7 @@ typedef NS_ENUM(NSInteger, SGArtistSection) {
         action.enabled = !blocked;
         [sheet addAction:action];
     }];
-    [sheet addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [sheet addAction:[SGSettingsAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
     sheet.popoverPresentationController.sourceView = source;
     sheet.popoverPresentationController.sourceRect = source.bounds;
     [self presentViewController:sheet animated:YES completion:nil];

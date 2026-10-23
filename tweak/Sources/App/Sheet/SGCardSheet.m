@@ -56,6 +56,7 @@ static CAShapeLayer *newStroke(CGFloat width) {
 
 - (instancetype)initWithTitle:(NSString *)title symbol:(NSString *)symbol color:(UIColor *)color prominent:(BOOL)prominent {
     if (!(self = [super initWithFrame:CGRectZero])) return nil;
+    title = SGText(title);
     _prominent = prominent;
     self.isAccessibilityElement = YES;
     self.accessibilityTraits = UIAccessibilityTraitButton;
@@ -272,7 +273,7 @@ static __weak SGCardSheet *sg_showing;
 
 - (UILabel *)label:(NSString *)text font:(UIFont *)font color:(UIColor *)color {
     UILabel *label = [UILabel new];
-    label.text = text;
+    label.text = SGText(text);
     label.font = font;
     label.textColor = color;
     label.numberOfLines = 0;
@@ -321,7 +322,7 @@ static __weak SGCardSheet *sg_showing;
 
     UIButtonConfiguration *config = [UIButtonConfiguration plainButtonConfiguration];
     config.baseForegroundColor = [UIColor colorWithWhite:1 alpha:0.6];
-    config.attributedTitle = [[NSAttributedString alloc] initWithString:self.dismissTitle ?: @"Not now"
+    config.attributedTitle = [[NSAttributedString alloc] initWithString:SGText(self.dismissTitle ?: @"Not now")
                                                              attributes:@{NSFontAttributeName: [UIFont systemFontOfSize:15 weight:UIFontWeightMedium]}];
     UIButton *later = [UIButton buttonWithConfiguration:config primaryAction:nil];
     [later addTarget:self action:@selector(dismissCard) forControlEvents:UIControlEventTouchUpInside];

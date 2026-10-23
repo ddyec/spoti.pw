@@ -27,7 +27,7 @@ void SGSetRedesignedUI(BOOL on) {
 }
 
 NSString *SGRedesignUntestedWarning(void) {
-    return [NSString stringWithFormat:@"The redesign is made for iOS 26 and has not been tested on iOS %@ at all. Expect bugs and freezes. If Spotify stops opening, delete and reinstall it.", UIDevice.currentDevice.systemVersion];
+    return [NSString stringWithFormat:SGText(@"The redesign is made for iOS 26 and has not been tested on iOS %@ at all. Expect bugs and freezes. If Spotify stops opening, delete and reinstall it."), UIDevice.currentDevice.systemVersion];
 }
 
 // The whole look changes hands at launch, so the switch asks for the restart straight away rather than
@@ -35,11 +35,11 @@ NSString *SGRedesignUntestedWarning(void) {
 static void offerRestart(BOOL on) {
     NSString *restart = on ? @"The redesign takes over when Spotify starts again. Spotify closes now; open it again to see it." : @"Spotify's own look comes back when Spotify starts again. Spotify closes now; open it again to see it.";
     BOOL untested = on && !SGRedesignTested();
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:untested ? @"Not tested on this iOS" : @"Restart Spotify"
+    UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:untested ? @"Not tested on this iOS" : @"Restart Spotify"
         message:untested ? [NSString stringWithFormat:@"%@\n\n%@", SGRedesignUntestedWarning(), restart] : restart
         preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Later" style:UIAlertActionStyleCancel handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Restart now" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) { SGRestartSpotify(); }]];
+    [alert addAction:[SGSettingsAction actionWithTitle:@"Later" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[SGSettingsAction actionWithTitle:@"Restart now" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) { SGRestartSpotify(); }]];
     [SGTopController() presentViewController:alert animated:YES completion:nil];
 }
 

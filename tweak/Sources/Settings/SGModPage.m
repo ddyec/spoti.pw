@@ -239,17 +239,17 @@ SGModRow *SGLinkRow(NSString *title, NSString *subtitle, NSString *url) {
 }
 
 static void sayProblem(NSString *title, NSString *problem) {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:problem preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:title message:problem preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[SGSettingsAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
     [SGTopController() presentViewController:alert animated:YES completion:nil];
 }
 
 SGModRow *SGTextRow(NSString *title, NSString *prompt, NSString *placeholder, NSString *(^value)(void),
                     NSString *(^set)(NSString *text)) {
     return SGStatActionRow(title, nil, value, ^{
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:prompt preferredStyle:UIAlertControllerStyleAlert];
+        UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:title message:prompt preferredStyle:UIAlertControllerStyleAlert];
         [alert addTextFieldWithConfigurationHandler:^(UITextField *field) {
-            field.placeholder = placeholder;
+            field.placeholder = SGText(placeholder);
             field.autocapitalizationType = UITextAutocapitalizationTypeNone;
             field.autocorrectionType = UITextAutocorrectionTypeNo;
             field.spellCheckingType = UITextSpellCheckingTypeNo;
@@ -257,13 +257,13 @@ SGModRow *SGTextRow(NSString *title, NSString *prompt, NSString *placeholder, NS
             field.smartQuotesType = UITextSmartQuotesTypeNo;
             field.clearButtonMode = UITextFieldViewModeWhileEditing;
         }];
-        [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+        [alert addAction:[SGSettingsAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
         if (value()) {
-            [alert addAction:[UIAlertAction actionWithTitle:@"Remove" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
+            [alert addAction:[SGSettingsAction actionWithTitle:@"Remove" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
                 set(@"");
             }]];
         }
-        UIAlertAction *save = [UIAlertAction actionWithTitle:@"Save" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        UIAlertAction *save = [SGSettingsAction actionWithTitle:@"Save" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
             NSString *text = [alert.textFields.firstObject.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
             if (!text.length) return;
             NSString *problem = set(text);
@@ -310,7 +310,7 @@ static UIView *valueAndChevron(NSString *text) {
     UILabel *label = [UILabel new];
     label.font = SGTitleFont();
     label.textColor = SGGrey();
-    label.text = text;
+    label.text = SGText(text);
     [label sizeToFit];
     UIImageView *chevron = SGSymbolView(@"chevron.right", 13, UIImageSymbolWeightSemibold, 16);
     CGFloat height = MAX(label.bounds.size.height, chevron.bounds.size.height);
@@ -338,7 +338,7 @@ void SGFillRowCell(UITableViewCell *cell, SGModRow *row) {
         UILabel *label = [UILabel new];
         label.font = SGTitleFont();
         label.textColor = SGGrey();
-        label.text = row.value();
+        label.text = SGText(row.value());
         [label sizeToFit];
         cell.accessoryView = label;
         cell.selectionStyle = row.action ? UITableViewCellSelectionStyleDefault : UITableViewCellSelectionStyleNone;
@@ -698,7 +698,7 @@ static void showProgress(UITableViewCell *cell, SGModRow *row, BOOL animated) {
         if (row.number && [cell isKindOfClass:SGModSliderCell.class]) [(SGModSliderCell *)cell readAgain];
         UILabel *label = (UILabel *)cell.accessoryView;
         if (!row.value || row.page || ![label isKindOfClass:UILabel.class]) continue;
-        label.text = row.value();
+        label.text = SGText(row.value());
         [label sizeToFit];
         [cell setNeedsLayout];
     }
@@ -817,7 +817,7 @@ static void showProgress(UITableViewCell *cell, SGModRow *row, BOOL animated) {
     UIImageSymbolConfiguration *symbol = [UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightRegular];
     [info setImage:[UIImage systemImageNamed:@"info.circle" withConfiguration:symbol] forState:UIControlStateNormal];
     info.tintColor = SGGrey();
-    info.accessibilityLabel = @"About this switch";
+    info.accessibilityLabel = SGText(@"About this switch");
     [info addTarget:self action:@selector(infoTapped:) forControlEvents:UIControlEventTouchUpInside];
     [toggle sizeToFit];
     CGFloat side = 30, gap = 8, height = MAX(side, toggle.bounds.size.height);
@@ -833,8 +833,8 @@ static void showProgress(UITableViewCell *cell, SGModRow *row, BOOL animated) {
     NSIndexPath *path = [self pathOf:button];
     if (!path) return;
     SGModRow *row = [self rowAt:path];
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:row.title message:row.info preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:row.title message:row.info preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[SGSettingsAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
 }
 
@@ -860,22 +860,22 @@ static void showProgress(UITableViewCell *cell, SGModRow *row, BOOL animated) {
 
 // A locked row will not move, and nothing on it says why.
 - (void)explainLock {
-    UIAlertController *alert = [UIAlertController
+    UIAlertController *alert = [SGSettingsAlert
         alertControllerWithTitle:@"Overridden by another setting"
                          message:@"Another switch is forcing this flag, so the row shows what it forces instead of taking a value of its own."
                   preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[SGSettingsAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
 }
 
 - (void)warn:(SGModRow *)row {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:[row.title stringByAppendingString:@" is unstable"]
+    UIAlertController *alert = [SGSettingsAlert alertControllerWithTitle:[row.title stringByAppendingString:SGText(@" is unstable")]
                                                                   message:row.warning
                                                            preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Open GitHub" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+    [alert addAction:[SGSettingsAction actionWithTitle:@"Open GitHub" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
         SGOpenURL(SGRepoURL);
     }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[SGSettingsAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
 }
 
